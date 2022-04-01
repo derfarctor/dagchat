@@ -1,0 +1,5 @@
+Alice wishes to send a message to Bob.
+
+1. Alice makes note of Bob's public key.
+2. Alice generates a new ephemeral key pair unique to this message.
+3. 
