@@ -1,8 +1,5 @@
-use core::panic;
-
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
-
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
 
@@ -18,7 +15,6 @@ pub fn get_address(pub_key_bytes: &[u8]) -> String {
     let mut h = [0u8; 3].to_vec();
     h.append(&mut pub_key_vec);
     let checksum = ADDR_ENCODING.encode(&compute_address_checksum(pub_key_bytes));
-    println!("Checksum real: {}", checksum);
     let address = {
         let encoded_addr = ADDR_ENCODING.encode(&h);
         let mut addr = String::from(PREFIX);
@@ -30,20 +26,11 @@ pub fn get_address(pub_key_bytes: &[u8]) -> String {
 }
 
 pub fn to_public_key(addr: String) -> Vec<u8> {
-    println!("A: {}", addr.get(5..57).unwrap());
     let mut encoded_addr = String::from(addr.get(5..57).unwrap());
     encoded_addr.insert_str(0, "1111");
-    println!("Checksum: {}", addr.get(57..).unwrap());
-    let checksum = addr.get(57..).unwrap();
     let mut pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes()).unwrap();
-    let derived_checksum = ADDR_ENCODING.encode(&compute_address_checksum(&pub_key_vec[3..]));
-    if checksum != derived_checksum {
-        println!("{:?}", checksum);
-        println!("{:?}", derived_checksum);
-        panic!("ERROR WID ADDY");
-    }
     pub_key_vec.drain(0.. 3);
-    return pub_key_vec;
+    pub_key_vec
 }
 
 fn compute_address_checksum(pub_key_bytes: &[u8]) -> [u8; 5] {
