@@ -1,0 +1,13 @@
+[package]
+name = "dagchat"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ecies-ed25519 = "0.5.1"
+rand = "0.7.0"
+blake2 = "0.10.2"
+data-encoding = "2.3.2"
+data-encoding-macro = "0.1.12"
