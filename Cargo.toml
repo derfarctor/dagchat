@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+# , package = "ed25519-dalek-blake2-feeless"
 [dependencies]
 ecies-ed25519 = "0.5.1"
-ed25519-dalek = { version = "1.0.1", package = "ed25519-dalek-blake2-feeless" }
+ed25519-dalek = { version = "1.0.1"  , package = "ed25519-dalek-blake2-feeless"}
+cursive = { git = "https://github.com/gyscos/cursive", default-features = false, features = ["crossterm-backend"] }
 sha2 = "0.10.1"
 blake2 = "0.10.2"
 rand = "0.7.0"
@@ -18,3 +19,4 @@ bytes = "1.0.1"
 num_cpus = "1.13.1"
 serde_json = "1.0.74"
 reqwest = {version = "0.11.10", features = ["blocking"]}
+crossterm = {version = "0.23.2", all-features = true}
