@@ -4,10 +4,12 @@ use blake2::Blake2bVar;
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
 use ecies_ed25519;
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
+use serde;
+use serde_json::json;
 use ed25519_dalek;
 use std::str;
-
+use std::collections::HashMap;
 
 const ADDR_ENCODING: Encoding = new_encoding! {
     symbols: "13456789abcdefghijkmnopqrstuwxyz",
@@ -22,95 +24,282 @@ const PREFIX: &str = "ban_";
 //banano
 //https://kaliumapi.appditto.com/api
 
-struct messageResult {
+struct MessageResult {
         success: bool,
         blocks: u64,
         msg: String,
         time: u64,
 }
 
-pub fn send_message(private_key_bytes: &[u8; 32], public_key_bytes: &[u8; 32], message: String) {
-        // Get previous
-        // Get balance
+#[derive(Serialize, Deserialize, Debug)]
+struct AccountInfoResponse {
+        frontier: String,
+        open_block: String,
+        representative_block: String,
+        balance: String,
+        modified_timestamp: String,
+        block_count: String,
+        account_version: String,
+        confirmation_height: String,
+        confirmation_height_frontier: String
+}
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Block {
+        #[serde(rename = "type")]
+        type_name: String,
+        #[serde(default)]
+        account: String,
+        previous: String,
+        representative: String,
+        balance: String,
+        link: String,
+        signature: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ReceivableRequest {
+        action: String,
+        account: String,
+        source: bool,
+        sorting: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ReceivableResponse {
+        blocks: ReceivableBlocks
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ReceivableBlocks {
+        #[serde(flatten)]
+        data: HashMap<String, ReceivableBlock>
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ReceivableBlock {
+        amount: String,
+        source: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ProcessRequest {
+        action: String,
+        json_block: String,
+        do_work: bool,
+        subtype: String,
+        block: Block
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ProcessResponse {
+        hash: String
+}
+
+pub struct MessageRoot {
+        pub root: String,
+        // Used for seeing message sender in app
+        source: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct BlockRequest {
+        action: String,
+        json_block: bool,
+        hash: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BlockResponse {
+        block_account: String,
+        amount: String,
+        balance: String,
+        height: String,
+        local_timestamp: String,
+        successor: String,
+        confirmed: String,
+        contents: Block,
+        subtype: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct HistoryRequest {
+        action: String,
+        account: String,
+        count: u64,
+        head: String,
+        reverse: bool,
+        raw: bool
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct HistoryResponse {
+        account: String,
+        history: Vec<Block>,
+        #[serde(default)]
+        next: String
+}
+
+pub fn send_message(private_key_bytes: &[u8; 32], target_address: String, message: String, node_url: &str) {
+        let public_key_bytes = to_public_key(target_address);
         let mut message = message.clone();
         let pad = (message.len()+28) % 32;
         for _ in 0..(32-pad) {
                 message.push_str(" ");
         }
-        let public_key = ecies_ed25519::PublicKey::from_bytes(public_key_bytes).unwrap();
-
+        let public_key = ecies_ed25519::PublicKey::from_bytes(&public_key_bytes).unwrap();
+        println!("Encrypting message for send: {}", message);
         let mut csprng = rand::thread_rng();
         let encrypted_bytes = ecies_ed25519::encrypt(&public_key, message.as_bytes(), &mut csprng).unwrap();
         let blocks_needed = ((60 + message.len()) / 32) + 1;
         println!("Blocks needed: {}", blocks_needed);
 
-        let mut blocks: Vec<Value> = Vec::with_capacity(blocks_needed);
         let mut block_data = [0u8; 32];
         let mut first_block_hash = [0u8; 32];
-        let mut block_hash = [0u8; 32];
 
-        // INIT after frontier pulled from node
-        let mut last_block_hash = [0u8; 32];
-        let balance = 1;
-        
+        // Derive sender's address
+        let sender_pub = ed25519_dalek::PublicKey::from(&ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap());
+        let sender_address = get_address(sender_pub.as_bytes());
+
+        // Set up the previous block hash and balance to start publishing blocks
+        let (mut last_block_hash, mut balance) = get_frontier_and_balance(sender_address, node_url);
+        let mut link = [0u8; 32];
+        let mut sub = String::from("change");
+
         for block_num in 0..blocks_needed {   
                 let start = 32 * block_num; 
                 let end = 32 * (block_num + 1);
-
-                let block: Value;
-
                 if block_num == blocks_needed-1 {
-                        //send 1 raw link in first hash
-                        block_hash = get_hash(private_key_bytes, &first_block_hash, &last_block_hash, &public_key_bytes, balance-1);
-                        block = get_block_json(private_key_bytes, &first_block_hash, &last_block_hash, &public_key_bytes, balance-1, &block_hash);
+                        // Last block sent is the send block with 1 raw to recipient
+                        // Link is the recipient
+                        // Rep is the hash of the first block in the message
+                        block_data = first_block_hash;
+                        balance -= 1;
+                        link = public_key_bytes;
+                        sub = String::from("send");
+
                 } else {
                         block_data.copy_from_slice(&encrypted_bytes[start..end]);
-                        let addr = get_address(&block_data);
-                        block_hash = get_hash(private_key_bytes, &block_data, &last_block_hash, &[0u8; 32], balance-1);
-                        block = get_block_json(private_key_bytes, &block_data, &last_block_hash, &[0u8; 32], balance-1, &block_hash);
                 }
+                println!("Block data as addr: {:?}", get_address(&block_data));
+                let block_hash = get_block_hash(private_key_bytes, &block_data, &last_block_hash, &link, balance);
+                let block = get_signed_block(private_key_bytes, &block_data, &last_block_hash, &link, balance, &block_hash);
                 if block_num == 0 {
-                        first_block_hash = get_hash(private_key_bytes, &block_data, &last_block_hash, &[0u8; 32], balance);
+                        first_block_hash = block_hash;
                 } 
                 last_block_hash = block_hash;
-                println!("{}", block.to_string());
-                blocks.push(block);
-
+                //println!("{}", block.to_string());
+                let hash = publish_block(block, sub.clone(), node_url);
+                println!("{}", hash);
         }
 }
 
-pub fn find_incoming() {
-        // Check for incoming messages
-}
+pub fn read_message(private_key_bytes: &[u8; 32], start_block_hash: String, node_url: &str) -> String {
+        let root_block = get_block_info(start_block_hash.clone(), node_url);
+        let root_height: u64 = root_block.height.parse().unwrap();
+        let representative_bytes = to_public_key(root_block.contents.representative);
+        let message_root_hash = hex::encode(representative_bytes);
+        // Since block is already pulled, can refrain from requesting it again in get_history
+        // Can be implemented with offset 1
+        let message_root_block = get_block_info(message_root_hash.clone(), node_url);
+        let message_height: u64 = message_root_block.height.parse().unwrap();
+        let message_block_count = root_height - message_height;
+        println!("Message length in blocks: {}", message_block_count);
+        let target = root_block.contents.account;
+        let message_blocks = get_history(target, message_root_hash, message_block_count, node_url);
+        
+        let encrypted_bytes = extract_message(message_blocks);
 
-pub fn read_message(private_key_bytes: &[u8; 32], start_block_hash: &[u8; 32], encrypted_msg: String) -> String {
-/*
-        let mut bob_encrypted_bytes = vec![];
-        for addr in addresses {
-                let block_data = to_public_key(addr);
-                bob_encrypted_bytes.extend(&block_data);
-        }
-
-        // Decrypt the message with the secret key
-        let decrypted = ecies_ed25519::decrypt(&bob_secret, &bob_encrypted_bytes[..]).unwrap();
-        println!("{:?}", str::from_utf8(&decrypted).unwrap().trim());
-         */
-        let bytes = hex::decode(encrypted_msg).unwrap();
         let dalek = ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap();
         let expanded_bytes = ed25519_dalek::ExpandedSecretKey::from(&dalek);
         let private_key = ecies_ed25519::SecretKey::from_bytes(&expanded_bytes.to_bytes()[0..32]).unwrap();
-        let decrypted = ecies_ed25519::decrypt(&private_key, &bytes).unwrap();
-        let msg = str::from_utf8(decrypted.as_slice()).unwrap();
-        String::from(msg)
+        let decrypted = ecies_ed25519::decrypt(&private_key, &encrypted_bytes).unwrap();
+        let plaintext = String::from_utf8(decrypted).unwrap();
+        println!("{}", plaintext);
+        plaintext
 }
 
-pub fn len_message(start_block_hash: &[u8; 32]) -> u64 {
-        // Get length of the message
-        0
+pub fn find_incoming(target_address: String, node_url: &str) -> Vec<MessageRoot> {
+        let request = ReceivableRequest {
+                action: String::from("pending"),
+                account: target_address,
+                source: true,
+                /* Maybe there's an efficient way to use this working backwards. Not implemented yet. */
+                sorting: true
+        };
+
+        let body = serde_json::to_string(&request).unwrap();
+        let response = post_node(body, node_url);
+        //println!("{}", response);
+        let receivable: ReceivableResponse = serde_json::from_str(&response).unwrap();
+
+        let blocks = receivable.blocks.data;
+        let mut incoming: Vec<MessageRoot> = vec![];
+        for block in blocks {
+                //println!("{} info: {:?}", block.0, block.1);
+                if block.1.amount == "1" {
+                        incoming.push(MessageRoot { root: block.0, source: block.1.source });
+                }
+        }
+        incoming
 }
 
-pub fn post_node(body: String, node_url: String) -> String {
+pub fn get_block_info(hash: String, node_url: &str) -> BlockResponse {
+        let request = BlockRequest {
+                action: String::from("block_info"),
+                json_block: true,
+                hash: hash
+        };
+
+        let body = serde_json::to_string(&request).unwrap();
+        let response = post_node(body, node_url);
+        //println!("{}", response);
+        let block_info: BlockResponse = serde_json::from_str(&response).unwrap();
+        block_info
+}
+
+pub fn get_frontier_and_balance(address: String, node_url: &str) -> ([u8; 32], u128) {
+        let body_json = json!({
+                "action": "account_info",
+                "account": address     
+            });
+        let body = body_json.to_string();
+        let resp_string = post_node(body, node_url);
+        //println!("Raw response: {}", resp_string);
+        let account_info: AccountInfoResponse = serde_json::from_str(&resp_string).unwrap();
+        let frontier_bytes = hex::decode(&account_info.frontier).unwrap();
+        let mut frontier = [0u8; 32];
+        frontier.copy_from_slice(frontier_bytes.as_slice());
+        let balance: u128 = account_info.balance.parse().unwrap();
+        (frontier, balance)
+}
+
+pub fn get_history(target_address: String, head: String, length: u64, node_url: &str) -> Vec<Block> {
+        let request = HistoryRequest {
+            action: String::from("account_history"),
+            account: target_address,
+            count: length,
+            head: head,
+            reverse: true,
+            raw: true
+        };
+        let body = serde_json::to_string(&request).unwrap();
+        let response = post_node(body, node_url);
+        //println!("{}", response);
+        let history_info: HistoryResponse = serde_json::from_str(&response).unwrap();
+        history_info.history
+}
+
+pub fn extract_message(blocks: Vec<Block>) -> Vec<u8> {
+        let mut encrypted_bytes = vec![];
+        for block in blocks {
+                let block_data = to_public_key(block.representative);
+                encrypted_bytes.extend(&block_data);
+        }
+        encrypted_bytes
+}
+
+pub fn post_node(body: String, node_url: &str) -> String {
         let client = reqwest::blocking::Client::new();
         let res = client.post(node_url)
         .header("Content-Type", "application/json")
@@ -118,27 +307,32 @@ pub fn post_node(body: String, node_url: String) -> String {
         .body(body)
         .send().unwrap();
 
-        let response_str = res.text().unwrap();
-        response_str
+        if res.status().is_success() {
+                println!("Successfully communicated with node");
+                let response_str = res.text().unwrap();
+                return response_str;
+        } else {
+                println!("Issue. Status: {}", res.status());
+        }
+        String::from("Failed")
 
 }
-pub fn publish_block(block: Value, sub: String, node_url: String) {
-        let body_json = json!({
-                "action": "process",
-                "json_block": "true",
-                "do_work": true,
-                "subtype": sub,
-                "block": block
-            });
+pub fn publish_block(block: Block, sub: String, node_url: &str) -> String {
 
-        let body = body_json.to_string();
-        println!("{}", body);
+        let request = ProcessRequest {
+                action: String::from("process"),
+                json_block: String::from("true"),
+                do_work: true,
+                subtype: sub,
+                block: block
+        };
+
+        let body = serde_json::to_string(&request).unwrap();
         let response = post_node(body, node_url);
-        println!("{}", response);
-        
+        response
 }
 
-pub fn get_hash(priv_k: &[u8; 32], rep: &[u8; 32], previous: &[u8; 32], link: &[u8; 32], balance: u128) -> [u8; 32] {
+pub fn get_block_hash(priv_k: &[u8; 32], rep: &[u8; 32], previous: &[u8; 32], link: &[u8; 32], balance: u128) -> [u8; 32] {
         let secret = ed25519_dalek::SecretKey::from_bytes(priv_k).unwrap();
         let public = ed25519_dalek::PublicKey::from(&secret);
 
@@ -165,7 +359,7 @@ pub fn get_hash(priv_k: &[u8; 32], rep: &[u8; 32], previous: &[u8; 32], link: &[
         buf
 }
 
-pub fn get_block_json(priv_k: &[u8; 32], rep: &[u8; 32], previous: &[u8; 32], link: &[u8; 32], balance: u128, block_hash: &[u8; 32]) -> Value {
+pub fn get_signed_block(priv_k: &[u8; 32], rep: &[u8; 32], previous: &[u8; 32], link: &[u8; 32], balance: u128, block_hash: &[u8; 32]) -> Block {
         let secret = ed25519_dalek::SecretKey::from_bytes(priv_k).unwrap();
         let public = ed25519_dalek::PublicKey::from(&secret);
         let expanded_secret = ed25519_dalek::ExpandedSecretKey::from(&secret);
@@ -179,15 +373,15 @@ pub fn get_block_json(priv_k: &[u8; 32], rep: &[u8; 32], previous: &[u8; 32], li
 
 
         //let work = generate_work(&previous, "banano");
-        let block = json!({
-                "type": "state",
-                "account": get_address(public.as_bytes()),
-                "previous": hex::encode(previous),
-                "representative": get_address(rep),
-                "balance": balance.to_string(),
-                "link": hex::encode(link),
-                "signature": z
-            });
+        let block = Block {
+                type_name: String::from("state"),
+                account: get_address(public.as_bytes()),
+                previous: hex::encode(previous),
+                representative: get_address(rep),
+                balance: balance.to_string(),
+                link: hex::encode(link),
+                signature: z
+        };
 
         block
 }
@@ -246,13 +440,10 @@ pub fn get_address(pub_key_bytes: &[u8]) -> String {
     address
 }
 
-pub fn to_public_key(addr: String, coin: String) -> [u8; 32] {
-        let mut encoded_addr: String = String::from("");
-        if coin == "nano" {
-                encoded_addr = String::from(addr.get(5..57).unwrap());
-        } else if coin == "banano" {
-                encoded_addr = String::from(addr.get(4..56).unwrap());
-        }
+pub fn to_public_key(addr: String) -> [u8; 32] {
+        let mut encoded_addr: String;
+        let parts: Vec<&str> = addr.split("_").collect();
+        encoded_addr = String::from(parts[1].get(0..52).unwrap());
         encoded_addr.insert_str(0, "1111");
         let mut pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes()).unwrap();
         pub_key_vec.drain(0..3);
