@@ -16,14 +16,6 @@ const ADDR_ENCODING: Encoding = new_encoding! {
     check_trailing_bits: false,
 };
 
-const PREFIX: &str = "ban_";
-
-//nano
-//https://app.natrium.io/api
-
-//banano
-//https://kaliumapi.appditto.com/api
-
 struct MessageResult {
     success: bool,
     blocks: u64,
@@ -145,6 +137,7 @@ pub fn send_message(
     target_address: String,
     message: String,
     node_url: &str,
+    addr_prefix: &str
 ) {
     let public_key_bytes = to_public_key(target_address);
     let mut message = message.clone();
@@ -153,12 +146,12 @@ pub fn send_message(
         message.push_str(" ");
     }
     let public_key = ecies_ed25519::PublicKey::from_bytes(&public_key_bytes).unwrap();
-    println!("Encrypting message for send: {}", message);
+    //println!("Encrypting message for send: {}", message);
     let mut csprng = rand::thread_rng();
     let encrypted_bytes =
         ecies_ed25519::encrypt(&public_key, message.as_bytes(), &mut csprng).unwrap();
     let blocks_needed = ((60 + message.len()) / 32) + 1;
-    println!("Blocks needed: {}", blocks_needed);
+    //println!("Blocks needed: {}", blocks_needed);
 
     let mut block_data = [0u8; 32];
     let mut first_block_hash = [0u8; 32];
@@ -167,7 +160,7 @@ pub fn send_message(
     let sender_pub = ed25519_dalek::PublicKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
     );
-    let sender_address = get_address(sender_pub.as_bytes());
+    let sender_address = get_address(sender_pub.as_bytes(), addr_prefix);
 
     // Set up the previous block hash and balance to start publishing blocks
     let (mut last_block_hash, mut balance) = get_frontier_and_balance(sender_address, node_url);
@@ -188,7 +181,7 @@ pub fn send_message(
         } else {
             block_data.copy_from_slice(&encrypted_bytes[start..end]);
         }
-        println!("Block data as addr: {:?}", get_address(&block_data));
+        //println!("Block data as addr: {:?}", get_address(&block_data, addr_prefix));
         let block_hash = get_block_hash(
             private_key_bytes,
             &block_data,
@@ -203,6 +196,7 @@ pub fn send_message(
             &link,
             balance,
             &block_hash,
+            addr_prefix
         );
         if block_num == 0 {
             first_block_hash = block_hash;
@@ -210,7 +204,7 @@ pub fn send_message(
         last_block_hash = block_hash;
         //println!("{}", block.to_string());
         let hash = publish_block(block, sub.clone(), node_url);
-        println!("{}", hash);
+        //println!("{}", hash);
     }
 }
 
@@ -228,7 +222,7 @@ pub fn read_message(
     let message_root_block = get_block_info(message_root_hash.clone(), node_url);
     let message_height: u64 = message_root_block.height.parse().unwrap();
     let message_block_count = root_height - message_height;
-    println!("Message length in blocks: {}", message_block_count);
+    //println!("Message length in blocks: {}", message_block_count);
     let target = root_block.contents.account;
     let message_blocks = get_history(target, message_root_hash, message_block_count, node_url);
 
@@ -240,7 +234,7 @@ pub fn read_message(
         ecies_ed25519::SecretKey::from_bytes(&expanded_bytes.to_bytes()[0..32]).unwrap();
     let decrypted = ecies_ed25519::decrypt(&private_key, &encrypted_bytes).unwrap();
     let plaintext = String::from_utf8(decrypted).unwrap();
-    println!("{}", plaintext);
+    //println!("{}", plaintext);
     plaintext
 }
 
@@ -293,6 +287,10 @@ pub fn get_frontier_and_balance(address: String, node_url: &str) -> ([u8; 32], u
     });
     let body = body_json.to_string();
     let resp_string = post_node(body, node_url);
+    if resp_string.contains("Account not found") {
+        return ([0u8; 32], 0);
+    }
+    eprintln!("Node response: {}", resp_string);
     //println!("Raw response: {}", resp_string);
     let account_info: AccountInfoResponse = serde_json::from_str(&resp_string).unwrap();
     let frontier_bytes = hex::decode(&account_info.frontier).unwrap();
@@ -343,11 +341,11 @@ pub fn post_node(body: String, node_url: &str) -> String {
         .unwrap();
 
     if res.status().is_success() {
-        println!("Successfully communicated with node");
+        eprintln!("Successfully communicated with node");
         let response_str = res.text().unwrap();
         return response_str;
     } else {
-        println!("Issue. Status: {}", res.status());
+        eprintln!("Issue. Status: {}", res.status());
     }
     String::from("Failed")
 }
@@ -406,6 +404,7 @@ pub fn get_signed_block(
     link: &[u8; 32],
     balance: u128,
     block_hash: &[u8; 32],
+    addr_prefix: &str
 ) -> Block {
     let secret = ed25519_dalek::SecretKey::from_bytes(priv_k).unwrap();
     let public = ed25519_dalek::PublicKey::from(&secret);
@@ -422,9 +421,9 @@ pub fn get_signed_block(
     //let work = generate_work(&previous, "banano");
     let block = Block {
         type_name: String::from("state"),
-        account: get_address(public.as_bytes()),
+        account: get_address(public.as_bytes(), addr_prefix),
         previous: hex::encode(previous),
-        representative: get_address(rep),
+        representative: get_address(rep, addr_prefix),
         balance: balance.to_string(),
         link: hex::encode(link),
         signature: z,
@@ -475,14 +474,14 @@ pub fn get_private_key(seed_bytes: &[u8; 32]) -> [u8; 32] {
     buf
 }
 
-pub fn get_address(pub_key_bytes: &[u8]) -> String {
+pub fn get_address(pub_key_bytes: &[u8], prefix: &str) -> String {
     let mut pub_key_vec = pub_key_bytes.to_vec();
     let mut h = [0u8; 3].to_vec();
     h.append(&mut pub_key_vec);
     let checksum = ADDR_ENCODING.encode(&compute_address_checksum(pub_key_bytes));
     let address = {
         let encoded_addr = ADDR_ENCODING.encode(&h);
-        let mut addr = String::from(PREFIX);
+        let mut addr = String::from(prefix);
         addr.push_str(encoded_addr.get(4..).unwrap());
         addr.push_str(&checksum);
         addr
@@ -498,6 +497,41 @@ pub fn to_public_key(addr: String) -> [u8; 32] {
     let mut pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes()).unwrap();
     pub_key_vec.drain(0..3);
     pub_key_vec.as_slice().try_into().unwrap()
+}
+
+// Could be to_public_key and have return value tuple with bool
+// like get_num_equivalent but this is faster since to_public_key
+// is used on confirmed valid addresses frequently in lib
+pub fn validate_address(addr: &str) -> bool {
+    let mut encoded_addr: String;
+
+    if !addr.contains("_") { return false };
+    let parts: Vec<&str> = addr.split("_").collect();
+
+    // Minimum viable public representation
+    if parts[1].len() < 52 { return false };
+    let checksum = String::from(parts[1].get(52..).unwrap());
+    encoded_addr = String::from(parts[1].get(0..52).unwrap());
+    encoded_addr.insert_str(0, "1111");
+
+    let pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes());
+    // Lazily catch decoding error - return false
+    let mut pub_key_vec = match pub_key_vec {
+        Ok(pub_key_vec) => pub_key_vec,
+        Err(e) => return false,
+    };
+    pub_key_vec.drain(0..3);
+    let public_key_bytes: [u8; 32] = pub_key_vec.as_slice().try_into().unwrap();
+    
+    let real_checksum_bytes = compute_address_checksum(&public_key_bytes);
+    let real_checksum = ADDR_ENCODING.encode(&real_checksum_bytes);
+
+    //println!("Told: {} Real: {}", checksum, real_checksum);
+    if checksum == real_checksum {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 fn compute_address_checksum(pub_key_bytes: &[u8]) -> [u8; 5] {
