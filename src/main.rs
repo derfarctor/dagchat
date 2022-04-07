@@ -2,8 +2,12 @@ use arboard::Clipboard;
 use cursive::align::HAlign;
 use cursive::theme;
 use cursive::traits::*;
-use cursive::views::{DummyView, Button, Dialog, EditView, LinearLayout, TextArea, TextView};
+use cursive::utils::Counter;
+use cursive::views::{ProgressBar, SelectView, DummyView, Button, Dialog, EditView, LinearLayout, TextArea, TextView};
 use cursive::Cursive;
+
+use std::thread;
+use std::time::Duration;
 
 mod lib;
 
@@ -18,7 +22,8 @@ pub struct Account {
     pub private_key: [u8; 32],
     pub public_key: [u8; 32],
     pub address: String,
-    pub balance: u128
+    pub balance: u128,
+    pub receivables: Vec<lib::Receivable>
 }
 
 impl Default for Account {
@@ -28,7 +33,8 @@ impl Default for Account {
             private_key: [0u8; 32],
             public_key: [0u8; 32],
             address: String::from(""),
-            balance: 0
+            balance: 0,
+            receivables: Vec::new()
         }
     }
 }
@@ -44,31 +50,10 @@ impl Data {
 }
 
 fn main() {
-     /*
-    let mnemonic = String::from("nice lock danger caught resemble limit rookie time laptop novel note oxygen mule tongue spray absent keep crowd mushroom mystery diesel dragon melody bone");
-    let entropy = lib::validate_mnemonic(&mnemonic).unwrap();
-    let p_key_bytes = lib::get_private_key(&entropy);
-    let private_key = ed25519_dalek::SecretKey::from_bytes(&p_key_bytes).unwrap();
-    let public_key = ed25519_dalek::PublicKey::from(&private_key);
-    let address = lib::get_address(public_key.as_bytes(), "ban_");
-    println!("{}", address);
-    let node = "https://kaliumapi.appditto.com/api";
-    let receivable = lib::find_incoming(address, node);
-    println!("{:?}", receivable);
-    //let first = &receivable[0];
-    let message = lib::has_message("5762ECBD8F0176F411EEBB53CFF047218319724A1D2F816AFC646D024093A9A7", node);
-    if let Some(message) = message {
-        println!("{:?}", message);
-        let plaintext = lib::read_message(private_key.as_bytes(), message, node);
-        println!("Plaintext: {}", plaintext);
-    } else {
-        println!("Not a message");
-    }
-       */
-   
     let mut siv = cursive::default();
     let data = Data::new();
     siv.set_user_data( data );
+
     siv.add_layer(
         Dialog::text("")
             .title("dagchat v.1.0.0")
@@ -86,8 +71,9 @@ fn main() {
                 show_start(s);
             }),
     );
+    
     siv.run();
- 
+  
 }
 
 fn show_start(s: &mut Cursive) {
@@ -187,12 +173,84 @@ fn show_send(s: &mut Cursive) {
 fn go_back(s: &mut Cursive) {
     s.pop_layer();
 }
-fn show_receive(s: &mut Cursive) {
+
+fn load_receivables(s: &mut Cursive) {
+    let ticks = 100;
+
+    let cb = s.cb_sink().clone();
+
+    let data = &s.user_data::<Data>().unwrap();
+    let node_url = data.node_url.clone();
+    let target_address = data.account.address.clone();
+
     s.pop_layer();
-    //let mut select = SelectView::new()
-        // Center the text horizontally
-        //.h_align(HAlign::Center);
-        
+    s.add_layer(Dialog::around(
+        ProgressBar::new()
+            .range(0, ticks)
+            .with_task(move |counter| {
+                let mut receivables = lib::find_incoming(&target_address, &node_url);
+                counter.tick(20);
+                if !receivables.is_empty() {
+                    let x = 80u64 / (receivables.len() as u64);
+                    for receivable in &mut receivables {
+                        receivable.message = lib::has_message(&receivable.hash, &node_url);
+                        counter.tick(x as usize);
+                    }
+                }
+                cb.send(Box::new(move |s| {
+                    let data = &mut s.user_data::<Data>().unwrap();
+                    data.account.receivables = receivables;
+                    show_receive(s);
+                })).unwrap();
+            })
+            .full_width(),
+    ));
+    s.set_autorefresh(true);
+}
+
+fn show_receive(s: &mut Cursive) {
+    
+    s.set_autorefresh(false);
+    s.pop_layer();
+
+    //let data: Data = s.take_user_data().unwrap();
+    let data = &s.user_data::<Data>().unwrap();
+    if data.account.receivables.is_empty() {
+        let content = "You don't have any receivables or incoming messages!";
+        s.add_layer(Dialog::around(TextView::new(content)).button("Menu", |s| return_to_menu(s)));
+        return;
+    }
+    
+    let mut select = SelectView::<String>::new()
+        .on_submit(show_message_info);
+
+    for receivable in &data.account.receivables {
+        let mut tag = String::from("");
+        if receivable.amount == 1 && receivable.message.is_some() {
+            tag = String::from("Message");
+        } else if receivable.amount < 1000000 {
+            tag = format!("{} raw", receivable.amount);
+        } else {
+            tag = format!("{} ban", receivable.amount.checked_div_euclid(1000000000000000000000000000000).unwrap());
+        }
+        if receivable.message.is_some() {
+            tag = format!("{} with message", tag);
+        }
+        let addr = receivable.source.get(0..12).unwrap();
+        tag = format!("{} from {}", tag, addr);
+        select.add_item_str(tag);
+    }
+    
+    s.add_layer(Dialog::around(select.scrollable().with_name("receivables")).title("Receivables"));
+}
+
+fn show_message_info(s: &mut Cursive, name: &str) {
+    let mut select = s.find_name::<SelectView<String>>("select").unwrap();
+    let idx = select.selected_id().unwrap();
+    let data = &s.user_data::<Data>().unwrap();
+
+
+    //s.add_layer(Dialog::around(TextView::new(content)).button("Back", |s| return_to_menu(s)));
 }
 
 fn get_mnemonic(s: &mut Cursive) {
@@ -264,7 +322,7 @@ fn return_to_menu(s: &mut Cursive) {
             .title("Main menu")
             .h_align(HAlign::Center)
             .button("Send", |s| show_send(s))
-            .button("Receive", |s| show_receive(s))
+            .button("Receive", |s| load_receivables(s))
             .button("Quit", |s| s.quit()),
     );
 }

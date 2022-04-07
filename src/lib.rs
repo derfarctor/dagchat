@@ -16,14 +16,6 @@ const ADDR_ENCODING: Encoding = new_encoding! {
     check_trailing_bits: false,
 };
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Message {
-    head: BlockResponse,
-    root_hash: String,
-    root: BlockResponse,
-    blocks: u64,
-    plaintext: String
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct AccountInfoResponse {
@@ -79,9 +71,29 @@ struct ReceivableBlock {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Receivable {
     pub hash: String,
-    amount: u128,
+    pub message: Option<Message>,
+    pub amount: u128,
     // Used for seeing message sender in app
-    source: String,
+    pub source: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Message {
+    head: Option<BlockResponse>,
+    root_hash: String,
+    blocks: u64,
+    plaintext: String
+}
+
+impl Default for Message {
+    fn default() -> Message {
+        Message {
+            head: None,
+            root_hash: String::from(""),
+            blocks: 0,
+            plaintext: String::from("")
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -215,7 +227,6 @@ pub fn send_message(
 pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
     // Assured to exist before being passed to function
     let head_block = get_block_info(head_hash, node_url).unwrap();
-    let head_height: u64 = head_block.height.parse().unwrap();
     let representative_bytes = to_public_key(&head_block.contents.representative);
     let root_hash = hex::encode(representative_bytes);
     let root_opt = get_block_info(&root_hash, node_url);
@@ -226,8 +237,7 @@ pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
         let message_block_count = head_height - root_height;
         let message = Message {
             blocks: message_block_count,
-            head: head_block,
-            root: root_block,
+            head: Some(head_block),
             root_hash: root_hash,
             plaintext: String::from("")
         };
@@ -239,10 +249,10 @@ pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
 
 pub fn read_message(
     private_key_bytes: &[u8; 32],
-    mut message: Message,
+    message: Message,
     node_url: &str,
 ) -> String {
-    let message_blocks = get_history(message.head.contents.account, message.root_hash, message.blocks, node_url);
+    let message_blocks = get_history(message.head.unwrap().contents.account, message.root_hash, message.blocks, node_url);
 
     let encrypted_bytes = extract_message(message_blocks);
 
@@ -256,10 +266,10 @@ pub fn read_message(
     plaintext
 }
 
-pub fn find_incoming(target_address: String, node_url: &str) -> Vec<Receivable> {
+pub fn find_incoming(target_address: &str, node_url: &str) -> Vec<Receivable> {
     let request = ReceivableRequest {
         action: String::from("pending"),
-        account: target_address,
+        account: String::from(target_address),
         source: true,
         /* Maybe there's an efficient way to use this working backwards. Not implemented yet. */
         sorting: true,
@@ -283,6 +293,7 @@ pub fn find_incoming(target_address: String, node_url: &str) -> Vec<Receivable> 
             hash: block.0,
             amount: block.1.amount.parse().unwrap(),
             source: block.1.source,
+            message: Default::default()
         });
     }
     incoming
