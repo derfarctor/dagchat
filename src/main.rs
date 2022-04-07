@@ -44,6 +44,28 @@ impl Data {
 }
 
 fn main() {
+     /*
+    let mnemonic = String::from("nice lock danger caught resemble limit rookie time laptop novel note oxygen mule tongue spray absent keep crowd mushroom mystery diesel dragon melody bone");
+    let entropy = lib::validate_mnemonic(&mnemonic).unwrap();
+    let p_key_bytes = lib::get_private_key(&entropy);
+    let private_key = ed25519_dalek::SecretKey::from_bytes(&p_key_bytes).unwrap();
+    let public_key = ed25519_dalek::PublicKey::from(&private_key);
+    let address = lib::get_address(public_key.as_bytes(), "ban_");
+    println!("{}", address);
+    let node = "https://kaliumapi.appditto.com/api";
+    let receivable = lib::find_incoming(address, node);
+    println!("{:?}", receivable);
+    //let first = &receivable[0];
+    let message = lib::has_message("5762ECBD8F0176F411EEBB53CFF047218319724A1D2F816AFC646D024093A9A7", node);
+    if let Some(message) = message {
+        println!("{:?}", message);
+        let plaintext = lib::read_message(private_key.as_bytes(), message, node);
+        println!("Plaintext: {}", plaintext);
+    } else {
+        println!("Not a message");
+    }
+       */
+   
     let mut siv = cursive::default();
     let data = Data::new();
     siv.set_user_data( data );
@@ -65,6 +87,7 @@ fn main() {
             }),
     );
     siv.run();
+ 
 }
 
 fn show_start(s: &mut Cursive) {
@@ -91,7 +114,7 @@ fn show_send(s: &mut Cursive) {
     });
 
     if empty {
-        let no_balance_message = format!("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. Claim from a faucet to begin sending messages - one claim will last you a lifetime! Your address is: {}", address);
+        let no_balance_message = format!("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. Claim from a faucet to begin sending messages (one claim will last you a lifetime!). Your address is: {}", address);
         s.add_layer(Dialog::around(TextView::new(no_balance_message))
         .h_align(HAlign::Center)
         .button("Menu", |s| return_to_menu(s))
@@ -141,8 +164,8 @@ fn show_send(s: &mut Cursive) {
                     }
                     let valid = lib::validate_address(&address);
                     if !valid { s.add_layer(Dialog::info("The recipient's address is invalid.")) }
+                    s.add_layer(Dialog::around(TextView::new("Sending message...")));
 
-                    s.add_layer(Dialog::around(TextView::new("Sending message...").with_name("sending")));
                     let data = &s.user_data::<Data>().unwrap();
                     let private_key_bytes = data.account.private_key;
                     let prefix = &data.prefix;
@@ -166,6 +189,10 @@ fn go_back(s: &mut Cursive) {
 }
 fn show_receive(s: &mut Cursive) {
     s.pop_layer();
+    //let mut select = SelectView::new()
+        // Center the text horizontally
+        //.h_align(HAlign::Center);
+        
 }
 
 fn get_mnemonic(s: &mut Cursive) {
@@ -205,18 +232,19 @@ fn get_mnemonic(s: &mut Cursive) {
 }
 
 fn set_mnemonic(s: &mut Cursive, mnemonic: &str) {
-    let (entropy, valid) = lib::validate_mnemonic(mnemonic);
+    let entropy = lib::validate_mnemonic(mnemonic);
     let content;
     s.pop_layer();
-    if valid && !mnemonic.is_empty() {
-        let private_key_bytes = lib::get_private_key(&entropy);
+    if  !mnemonic.is_empty() && entropy.is_some() {
+        let entropy_bytes = entropy.unwrap();
+        let private_key_bytes = lib::get_private_key(&entropy_bytes);
         let private_key = ed25519_dalek::SecretKey::from_bytes(&private_key_bytes).unwrap();
         let public_key = ed25519_dalek::PublicKey::from(&private_key);
         let public_key_bytes = public_key.to_bytes();
         let prefix = &s.user_data::<Data>().unwrap().prefix;
         let address = lib::get_address(&public_key_bytes, prefix);
         s.with_user_data(|data: &mut Data| {
-            data.account.entropy = entropy;
+            data.account.entropy = entropy_bytes;
             data.account.private_key = private_key_bytes;
             data.account.public_key = public_key_bytes;
             data.account.address = address;

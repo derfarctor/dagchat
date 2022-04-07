@@ -16,11 +16,13 @@ const ADDR_ENCODING: Encoding = new_encoding! {
     check_trailing_bits: false,
 };
 
-struct MessageResult {
-    success: bool,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Message {
+    head: BlockResponse,
+    root_hash: String,
+    root: BlockResponse,
     blocks: u64,
-    msg: String,
-    time: u64,
+    plaintext: String
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -75,6 +77,14 @@ struct ReceivableBlock {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct Receivable {
+    pub hash: String,
+    amount: u128,
+    // Used for seeing message sender in app
+    source: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 struct ProcessRequest {
     action: String,
     json_block: String,
@@ -86,12 +96,6 @@ struct ProcessRequest {
 #[derive(Serialize, Deserialize, Debug)]
 struct ProcessResponse {
     hash: String,
-}
-
-pub struct MessageRoot {
-    pub root: String,
-    // Used for seeing message sender in app
-    source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -137,9 +141,9 @@ pub fn send_message(
     target_address: String,
     message: String,
     node_url: &str,
-    addr_prefix: &str
+    addr_prefix: &str,
 ) {
-    let public_key_bytes = to_public_key(target_address);
+    let public_key_bytes = to_public_key(&target_address);
     let mut message = message.clone();
     let pad = (message.len() + 28) % 32;
     for _ in 0..(32 - pad) {
@@ -196,7 +200,7 @@ pub fn send_message(
             &link,
             balance,
             &block_hash,
-            addr_prefix
+            addr_prefix,
         );
         if block_num == 0 {
             first_block_hash = block_hash;
@@ -208,23 +212,37 @@ pub fn send_message(
     }
 }
 
+pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
+    // Assured to exist before being passed to function
+    let head_block = get_block_info(head_hash, node_url).unwrap();
+    let head_height: u64 = head_block.height.parse().unwrap();
+    let representative_bytes = to_public_key(&head_block.contents.representative);
+    let root_hash = hex::encode(representative_bytes);
+    let root_opt = get_block_info(&root_hash, node_url);
+    // Check if block exists. If it does, then it points toward a message root
+    if let Some(root_block) = root_opt {
+        let head_height: u64 = head_block.height.parse().unwrap();
+        let root_height: u64 = root_block.height.parse().unwrap();
+        let message_block_count = head_height - root_height;
+        let message = Message {
+            blocks: message_block_count,
+            head: head_block,
+            root: root_block,
+            root_hash: root_hash,
+            plaintext: String::from("")
+        };
+        return Some(message);
+    } else {
+        return None;
+    }
+}
+
 pub fn read_message(
     private_key_bytes: &[u8; 32],
-    start_block_hash: String,
+    mut message: Message,
     node_url: &str,
 ) -> String {
-    let root_block = get_block_info(start_block_hash.clone(), node_url);
-    let root_height: u64 = root_block.height.parse().unwrap();
-    let representative_bytes = to_public_key(root_block.contents.representative);
-    let message_root_hash = hex::encode(representative_bytes);
-    // Since block is already pulled, can refrain from requesting it again in get_history
-    // Can be implemented with offset 1
-    let message_root_block = get_block_info(message_root_hash.clone(), node_url);
-    let message_height: u64 = message_root_block.height.parse().unwrap();
-    let message_block_count = root_height - message_height;
-    //println!("Message length in blocks: {}", message_block_count);
-    let target = root_block.contents.account;
-    let message_blocks = get_history(target, message_root_hash, message_block_count, node_url);
+    let message_blocks = get_history(message.head.contents.account, message.root_hash, message.blocks, node_url);
 
     let encrypted_bytes = extract_message(message_blocks);
 
@@ -238,7 +256,7 @@ pub fn read_message(
     plaintext
 }
 
-pub fn find_incoming(target_address: String, node_url: &str) -> Vec<MessageRoot> {
+pub fn find_incoming(target_address: String, node_url: &str) -> Vec<Receivable> {
     let request = ReceivableRequest {
         action: String::from("pending"),
         account: target_address,
@@ -249,35 +267,42 @@ pub fn find_incoming(target_address: String, node_url: &str) -> Vec<MessageRoot>
 
     let body = serde_json::to_string(&request).unwrap();
     let response = post_node(body, node_url);
+
+    // Response from node if there are no receivable blocks
     //println!("{}", response);
+    if response.contains("\"blocks\": \"\"") {
+        return vec![];
+    }
     let receivable: ReceivableResponse = serde_json::from_str(&response).unwrap();
 
     let blocks = receivable.blocks.data;
-    let mut incoming: Vec<MessageRoot> = vec![];
+    let mut incoming: Vec<Receivable> = vec![];
     for block in blocks {
         //println!("{} info: {:?}", block.0, block.1);
-        if block.1.amount == "1" {
-            incoming.push(MessageRoot {
-                root: block.0,
-                source: block.1.source,
-            });
-        }
+        incoming.push(Receivable {
+            hash: block.0,
+            amount: block.1.amount.parse().unwrap(),
+            source: block.1.source,
+        });
     }
     incoming
 }
 
-pub fn get_block_info(hash: String, node_url: &str) -> BlockResponse {
+// TODO: Bundle without tuple into single option
+pub fn get_block_info(hash: &str, node_url: &str) -> Option<BlockResponse> {
     let request = BlockRequest {
         action: String::from("block_info"),
         json_block: true,
-        hash: hash,
+        hash: String::from(hash),
     };
-
     let body = serde_json::to_string(&request).unwrap();
     let response = post_node(body, node_url);
     //println!("{}", response);
-    let block_info: BlockResponse = serde_json::from_str(&response).unwrap();
-    block_info
+    if response.contains("Block not found") {
+        return None;
+    }
+    let block_response: BlockResponse = serde_json::from_str(&response).unwrap();
+    Some(block_response)
 }
 
 pub fn get_frontier_and_balance(address: String, node_url: &str) -> ([u8; 32], u128) {
@@ -324,7 +349,7 @@ pub fn get_history(
 pub fn extract_message(blocks: Vec<Block>) -> Vec<u8> {
     let mut encrypted_bytes = vec![];
     for block in blocks {
-        let block_data = to_public_key(block.representative);
+        let block_data = to_public_key(&block.representative);
         encrypted_bytes.extend(&block_data);
     }
     encrypted_bytes
@@ -404,7 +429,7 @@ pub fn get_signed_block(
     link: &[u8; 32],
     balance: u128,
     block_hash: &[u8; 32],
-    addr_prefix: &str
+    addr_prefix: &str,
 ) -> Block {
     let secret = ed25519_dalek::SecretKey::from_bytes(priv_k).unwrap();
     let public = ed25519_dalek::PublicKey::from(&secret);
@@ -432,10 +457,10 @@ pub fn get_signed_block(
     block
 }
 
-pub fn validate_mnemonic(mnemonic: &str) -> ([u8; 32], bool) {
+pub fn validate_mnemonic(mnemonic: &str) -> Option<[u8; 32]> {
     let (mnemonic, valid) = get_num_equivalent(mnemonic);
     if !valid {
-        return ([0u8; 32], false);
+        return None;
     }
     let mut bits = [false; 24 * 11];
     for i in 0..24 {
@@ -458,11 +483,11 @@ pub fn validate_mnemonic(mnemonic: &str) -> ([u8; 32], bool) {
     let check = hasher.finalize();
     for i in 0..8 {
         if bits[8 * 32 + i] != ((check[i / 8] & (1 << (7 - (i % 8)))) > 0) {
-            return (entropy, false);
+            return None;
         }
     }
 
-    (entropy, true)
+    Some(entropy)
 }
 
 pub fn get_private_key(seed_bytes: &[u8; 32]) -> [u8; 32] {
@@ -489,7 +514,7 @@ pub fn get_address(pub_key_bytes: &[u8], prefix: &str) -> String {
     address
 }
 
-pub fn to_public_key(addr: String) -> [u8; 32] {
+pub fn to_public_key(addr: &str) -> [u8; 32] {
     let mut encoded_addr: String;
     let parts: Vec<&str> = addr.split("_").collect();
     encoded_addr = String::from(parts[1].get(0..52).unwrap());
@@ -505,11 +530,15 @@ pub fn to_public_key(addr: String) -> [u8; 32] {
 pub fn validate_address(addr: &str) -> bool {
     let mut encoded_addr: String;
 
-    if !addr.contains("_") { return false };
+    if !addr.contains("_") {
+        return false;
+    };
     let parts: Vec<&str> = addr.split("_").collect();
 
     // Minimum viable public representation
-    if parts[1].len() < 52 { return false };
+    if parts[1].len() < 52 {
+        return false;
+    };
     let checksum = String::from(parts[1].get(52..).unwrap());
     encoded_addr = String::from(parts[1].get(0..52).unwrap());
     encoded_addr.insert_str(0, "1111");
@@ -522,7 +551,6 @@ pub fn validate_address(addr: &str) -> bool {
     };
     pub_key_vec.drain(0..3);
     let public_key_bytes: [u8; 32] = pub_key_vec.as_slice().try_into().unwrap();
-    
     let real_checksum_bytes = compute_address_checksum(&public_key_bytes);
     let real_checksum = ADDR_ENCODING.encode(&real_checksum_bytes);
 
