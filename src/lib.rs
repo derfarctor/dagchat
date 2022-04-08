@@ -35,7 +35,7 @@ pub struct Block {
     #[serde(rename = "type")]
     type_name: String,
     #[serde(default)]
-    account: String,
+    pub account: String,
     previous: String,
     representative: String,
     balance: String,
@@ -79,10 +79,10 @@ pub struct Receivable {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
-    head: Option<BlockResponse>,
-    root_hash: String,
-    blocks: u64,
-    plaintext: String
+    pub head: Option<BlockResponse>,
+    pub root_hash: String,
+    pub blocks: u64,
+    pub plaintext: String
 }
 
 impl Default for Message {
@@ -126,7 +126,7 @@ pub struct BlockResponse {
     local_timestamp: String,
     successor: String,
     confirmed: String,
-    contents: Block,
+    pub contents: Block,
     subtype: String,
 }
 
@@ -249,10 +249,12 @@ pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
 
 pub fn read_message(
     private_key_bytes: &[u8; 32],
-    message: Message,
+    target_address: &str,
+    root_hash: &str,
+    blocks: u64,
     node_url: &str,
 ) -> String {
-    let message_blocks = get_history(message.head.unwrap().contents.account, message.root_hash, message.blocks, node_url);
+    let message_blocks = get_history(target_address, root_hash, blocks, node_url);
 
     let encrypted_bytes = extract_message(message_blocks);
 
@@ -337,16 +339,16 @@ pub fn get_frontier_and_balance(address: String, node_url: &str) -> ([u8; 32], u
 }
 
 pub fn get_history(
-    target_address: String,
-    head: String,
+    target_address: &str,
+    head: &str,
     length: u64,
     node_url: &str,
 ) -> Vec<Block> {
     let request = HistoryRequest {
         action: String::from("account_history"),
-        account: target_address,
+        account: String::from(target_address),
         count: length,
-        head: head,
+        head: String::from(head),
         reverse: true,
         raw: true,
     };
@@ -558,7 +560,7 @@ pub fn validate_address(addr: &str) -> bool {
     // Lazily catch decoding error - return false
     let mut pub_key_vec = match pub_key_vec {
         Ok(pub_key_vec) => pub_key_vec,
-        Err(e) => return false,
+        Err(_) => return false,
     };
     pub_key_vec.drain(0..3);
     let public_key_bytes: [u8; 32] = pub_key_vec.as_slice().try_into().unwrap();
@@ -598,6 +600,26 @@ pub fn get_num_equivalent(mnemonic: &str) -> ([u16; 24], bool) {
         }
     }
     (num_mnemonic, true)
+}
+
+pub fn display_ban_dp(raw: u128, dp: usize) -> String {
+    // Does the job. Sorry.
+    let mut temp = (raw / 10u128.pow(29u32-dp as u32)).to_string();
+    while temp.len() < dp+1 {
+        temp.insert(0, '0');
+    }
+    temp.insert(temp.len()-dp, '.');
+    temp = temp.trim_end_matches("0").to_string();
+    temp = temp.trim_start_matches("0").to_string();
+    if temp.starts_with(".") {
+        temp.insert(0, '0');
+        while temp.len() < dp+2 {
+            temp.insert(temp.len(), '0');
+        }
+    } else if temp.ends_with(".") {
+        temp = temp.strip_suffix(".").unwrap().to_string();
+    }
+    temp
 }
 
 pub static WORD_LIST: [&str; 2048] = [
