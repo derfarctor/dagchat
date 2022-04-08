@@ -1,19 +1,24 @@
 use arboard::Clipboard;
+use bigdecimal::BigDecimal;
 use cursive::align::HAlign;
-use cursive::theme;
+use cursive::theme::{BaseColor, BorderStyle, Color, PaletteColor, Theme};
 use cursive::traits::*;
-use cursive::utils::Counter;
+use cursive::utils::markup::StyledString;
 use cursive::views::{
-    Button, Dialog, DummyView, EditView, LinearLayout, ProgressBar, SelectView, TextArea, TextView,
+    Button, Dialog, DummyView, EditView, LinearLayout, ProgressBar, RadioGroup, SelectView,
+    TextArea, TextView,
 };
 use cursive::Cursive;
+use std::str::FromStr;
 
 mod lib;
 
 pub struct Data {
     pub account: Account,
     pub prefix: String,
+    pub coin: String,
     pub node_url: String,
+    pub colour: Color,
 }
 
 pub struct Account {
@@ -42,40 +47,114 @@ impl Data {
     pub fn new() -> Self {
         Data {
             account: Default::default(),
+            coin: String::from("nano"),
             prefix: String::from("nano_"),
             node_url: String::from("https://app.natrium.io/api"),
+            colour: L_BLUE,
         }
     }
 }
 
+const VERSION: &str = "1.0.0";
+
+const L_BLUE: Color = Color::Rgb(62, 138, 227);
+const M_BLUE: Color = Color::Rgb(0, 106, 255);
+const D_BLUE: Color = Color::Rgb(12, 37, 125);
+
+const YELLOW: Color = Color::Light(BaseColor::Yellow);
+const OFF_WHITE: Color = Color::Rgb(245, 245, 247);
+
 fn main() {
     let mut siv = cursive::default();
+    siv.set_window_title(format!("dagchat v{}", VERSION));
     let data = Data::new();
     siv.set_user_data(data);
+    set_theme(&mut siv, "nano", false);
+
+    let mut theme_group: RadioGroup<bool> = RadioGroup::new();
+
+    let mut coin_group: RadioGroup<String> = RadioGroup::new();
+
+    let radios = LinearLayout::horizontal()
+        .child(
+            LinearLayout::vertical()
+                .child(coin_group.button("nano".to_string(), "nano").selected())
+                .child(coin_group.button("banano".to_string(), "banano")),
+        )
+        .child(DummyView)
+        .child(
+            LinearLayout::vertical()
+                .child(theme_group.button(false, "Modest").selected())
+                .child(theme_group.button(true, "Vibrant")),
+        );
+
+    let button = Button::new_raw("Start", move |s| {
+        let coin = coin_group.selection();
+        let vibrant = theme_group.selection();
+        set_theme(s, &*coin, *vibrant);
+        if *coin == "banano" {
+            s.with_user_data(|data: &mut Data| {
+                data.coin = String::from("banano");
+                data.prefix = String::from("ban_");
+                data.node_url = String::from("https://kaliumapi.appditto.com/api");
+                data.colour = YELLOW;
+            });
+        }
+        show_start(s)
+    });
+
     siv.add_layer(
-        Dialog::text("")
-            .title("dagchat v.1.0.0")
-            .h_align(HAlign::Center)
-            .button("nano", |s| {
-                set_theme(s, "nano");
+        Dialog::new()
+            .content(
+                LinearLayout::vertical()
+                    .child(DummyView)
+                    .child(button)
+                    .child(DummyView)
+                    .child(radios),
+            )
+            .title("Ӿdagchat v.1.0.0")
+            .h_align(HAlign::Center),
+    );
+    /*
+
+                LinearLayout::horizontal()
+            .child(Button::new_raw("nano", move |s| {
+                let vibrant = theme_group.selection();
+                if *vibrant {
+                    set_theme(s, "nano", true);
+                }
                 show_start(s);
-            })
-            .button("banano", |s| {
-                set_theme(s, "banano");
+            }))
+            .child(Button::new_raw("banano", move |s| {
+                let vibrant = theme_group.selection();
+                if *vibrant {
+                    set_theme(s, "banano", true);
+                } else {
+                    set_theme(s, "banano", false);
+                }
                 s.with_user_data(|data: &mut Data| {
+                    data.coin = String::from("banano");
                     data.prefix = String::from("ban_");
                     data.node_url = String::from("https://kaliumapi.appditto.com/api");
+                    data.colour = YELLOW;
                 });
                 show_start(s);
-            }),
-    );
+            })))
+            .child(radios))
+                ,
+        );
+    */
     siv.run();
 }
 
 fn show_start(s: &mut Cursive) {
     s.pop_layer();
+    let data = &s.user_data::<Data>().unwrap();
+    let coin = &data.coin;
+    let colour = data.colour;
+    let content = format!("Choose a way to import your {} wallet", coin);
     s.add_layer(
-        Dialog::text("Choose a way to import your banano wallet")
+        Dialog::text(StyledString::styled(content, colour))
             .title("Import account")
             .h_align(HAlign::Center)
             .button("mnemonic", |s| get_mnemonic(s)),
@@ -96,7 +175,7 @@ fn show_send(s: &mut Cursive) {
     });
 
     if empty {
-        let no_balance_message = format!("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. Claim from a faucet to begin sending messages (one claim will last you a lifetime!). Your address is: {}", address);
+        let no_balance_message = format!("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. One faucet claim will last you a lifetime. Your address is: {}", address);
         s.add_layer(
             Dialog::around(TextView::new(no_balance_message))
                 .h_align(HAlign::Center)
@@ -245,7 +324,7 @@ fn show_receive(s: &mut Cursive, initial: bool) {
         }))
         .child(Button::new("Refresh", |s| load_receivables(s, true)))
         .child(DummyView)
-        .child(Button::new("Quit", |s| {}));
+        .child(Button::new("Menu", |s| return_to_menu(s)));
 
     let select = SelectView::<String>::new()
         .on_submit(show_message_info)
@@ -273,14 +352,18 @@ fn show_receive(s: &mut Cursive, initial: bool) {
             if receivable.amount < 1000000 {
                 tag = format!("{} raw", receivable.amount);
             } else {
-            let ban = lib::display_ban_dp(receivable.amount, 5);
-            tag = format!("{}", ban);
+                eprint!("{}\n", receivable.amount);
+                let raw = BigDecimal::from_str(&receivable.amount.to_string()).unwrap();
+                let multi = BigDecimal::from_str("100000000000000000000000000000").unwrap();
+                eprint!("{}\n{}", raw, multi);
+                let x = raw / multi;
+                tag = format!("{}", x.to_string());
             }
             if receivable.message.is_some() {
                 tag = format!("{} with message", tag);
             }
         }
-        let addr = receivable.source.get(0..12).unwrap();
+        let addr = receivable.source.get(0..13).unwrap();
         tag = format!("{} from {}", tag, addr);
         s.call_on_name("select", |view: &mut SelectView<String>| {
             view.add_item_str(&tag)
@@ -291,17 +374,17 @@ fn show_receive(s: &mut Cursive, initial: bool) {
 
 fn show_message_info(s: &mut Cursive, name: &str) {
     let select = s.find_name::<SelectView<String>>("select").unwrap();
-    eprintln!("Showmessageinfo");
+    //eprintln!("Showmessageinfo");
     match select.selected_id() {
         None => s.add_layer(Dialog::info("No receivable selected.")),
         Some(focus) => {
             let data = &mut s.user_data::<Data>().unwrap();
             //select.remove_item(focus);
             let receivable = &mut data.account.receivables[focus];
-            eprintln!("{:?}", receivable);
+            //eprintln!("{:?}", receivable);
             let private_key = &data.account.private_key;
             let node_url = &data.node_url;
-            let mut plaintext: String;
+            let plaintext: String;
             if receivable.message.is_some() {
                 let mut message = receivable.message.as_mut().unwrap();
                 if message.plaintext.is_empty() {
@@ -313,9 +396,9 @@ fn show_message_info(s: &mut Cursive, name: &str) {
                 } else {
                     plaintext = message.plaintext.clone();
                 }
-                s.add_layer(Dialog::info(format!("Message: {}", plaintext)));    
+                s.add_layer(Dialog::info(format!("Message: {}", plaintext)));
             } else {
-                s.add_layer(Dialog::info("no msg"));  
+                s.add_layer(Dialog::info("no msg"));
             }
         }
     }
@@ -345,7 +428,7 @@ fn get_mnemonic(s: &mut Cursive) {
             .button("Paste", |s| {
                 s.call_on_name("mnemonic", |view: &mut EditView| {
                     let mut clipboard = Clipboard::new().unwrap();
-                    let mut clip = clipboard
+                    let clip = clipboard
                         .get_text()
                         .unwrap_or_else(|_| String::from("Failed to read clipboard."));
                     view.set_content(clip);
@@ -391,47 +474,56 @@ fn return_to_menu(s: &mut Cursive) {
             .title("Main menu")
             .h_align(HAlign::Center)
             .button("Send", |s| show_send(s))
-            .button("Receive", |s| load_receivables(s, true))
-            .button("Quit", |s| s.quit()),
+            .button("Receive", |s| load_receivables(s, true)),
     );
 }
 
-fn set_theme(s: &mut Cursive, style: &str) {
+fn set_theme(s: &mut Cursive, style: &str, vibrant: bool) {
     let mut theme = s.current_theme().clone();
     if style == "nano" {
-        theme = get_nano_theme(theme);
+        theme = get_nano_theme(theme, vibrant);
     } else {
-        theme = get_banano_theme(theme);
+        theme = get_banano_theme(theme, vibrant);
     }
     s.set_theme(theme);
 }
 
-fn get_banano_theme(mut base: theme::Theme) -> theme::Theme {
-    // USE RGB OR HEX
-    base.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Black);
-    base.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::Yellow);
-    base.palette[theme::PaletteColor::Secondary] = theme::Color::Light(theme::BaseColor::Yellow);
-    base.palette[theme::PaletteColor::Tertiary] = theme::Color::Light(theme::BaseColor::Yellow);
-    base.palette[theme::PaletteColor::TitlePrimary] = theme::Color::Light(theme::BaseColor::Yellow);
-    base.palette[theme::PaletteColor::TitleSecondary] =
-        theme::Color::Light(theme::BaseColor::Yellow);
-    base.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Yellow);
-    base.palette[theme::PaletteColor::HighlightInactive] =
-        theme::Color::Dark(theme::BaseColor::Yellow);
-    base.palette[theme::PaletteColor::Background] = theme::Color::Light(theme::BaseColor::Yellow);
-    base.palette[theme::PaletteColor::Shadow] = theme::Color::Dark(theme::BaseColor::Yellow);
+fn get_banano_theme(mut base: Theme, v: bool) -> Theme {
+    if (v) {
+        base.shadow = true;
+        base.palette[PaletteColor::Background] = YELLOW;
+    } else {
+        base.palette[PaletteColor::Background] = Color::Rgb(25, 25, 27);
+    }
+    base.palette[PaletteColor::View] = Color::Rgb(34, 34, 42);
+    base.palette[PaletteColor::Primary] = YELLOW;
+    base.palette[PaletteColor::Secondary] = YELLOW;
+    base.palette[PaletteColor::Tertiary] = OFF_WHITE;
+    base.palette[PaletteColor::TitlePrimary] = OFF_WHITE;
+    base.palette[PaletteColor::TitleSecondary] = YELLOW;
+    base.palette[PaletteColor::Highlight] = Color::Dark(BaseColor::Yellow);
+    base.palette[PaletteColor::HighlightInactive] = YELLOW;
+    base.palette[PaletteColor::Shadow] = Color::Dark(BaseColor::Yellow);
     base
 }
 
-fn get_nano_theme(mut base: theme::Theme) -> theme::Theme {
-    // USE RGB OR HEx
-    base.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::White);
-    base.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::Blue);
-    base.palette[theme::PaletteColor::TitlePrimary] = theme::Color::Light(theme::BaseColor::Blue);
-    base.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Blue);
-    base.palette[theme::PaletteColor::HighlightInactive] =
-        theme::Color::Dark(theme::BaseColor::Blue);
-    base.palette[theme::PaletteColor::Background] = theme::Color::Light(theme::BaseColor::Blue);
-    base.palette[theme::PaletteColor::Shadow] = theme::Color::Dark(theme::BaseColor::Blue);
+fn get_nano_theme(mut base: Theme, v: bool) -> Theme {
+    if (v) {
+        base.shadow = true;
+        base.palette[PaletteColor::Background] = L_BLUE;
+        base.palette[PaletteColor::Shadow] = D_BLUE;
+    } else {
+        base.shadow = false;
+        base.palette[PaletteColor::Background] = Color::Rgb(25, 25, 27);
+    }
+    base.borders = BorderStyle::Simple;
+    base.palette[PaletteColor::View] = Color::Rgb(34, 34, 42);
+    base.palette[PaletteColor::Primary] = OFF_WHITE;
+    base.palette[PaletteColor::Secondary] = OFF_WHITE;
+    base.palette[PaletteColor::Tertiary] = M_BLUE;
+    base.palette[PaletteColor::TitlePrimary] = OFF_WHITE;
+    base.palette[PaletteColor::TitleSecondary] = YELLOW;
+    base.palette[PaletteColor::Highlight] = D_BLUE;
+    base.palette[PaletteColor::HighlightInactive] = L_BLUE;
     base
 }
