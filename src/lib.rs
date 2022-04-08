@@ -219,7 +219,7 @@ pub fn send_message(
         }
         last_block_hash = block_hash;
         //println!("{}", block.to_string());
-        let hash = publish_block(block, sub.clone(), node_url);
+        let _hash = publish_block(block, sub.clone(), node_url);
         //println!("{}", hash);
     }
 }
@@ -328,7 +328,7 @@ pub fn get_frontier_and_balance(address: String, node_url: &str) -> ([u8; 32], u
     if resp_string.contains("Account not found") {
         return ([0u8; 32], 0);
     }
-    eprintln!("Node response: {}", resp_string);
+    //eprintln!("Node response: {}", resp_string);
     //println!("Raw response: {}", resp_string);
     let account_info: AccountInfoResponse = serde_json::from_str(&resp_string).unwrap();
     let frontier_bytes = hex::decode(&account_info.frontier).unwrap();
@@ -379,11 +379,11 @@ pub fn post_node(body: String, node_url: &str) -> String {
         .unwrap();
 
     if res.status().is_success() {
-        eprintln!("Successfully communicated with node");
+        //eprintln!("Successfully communicated with node");
         let response_str = res.text().unwrap();
         return response_str;
     } else {
-        eprintln!("Issue. Status: {}", res.status());
+        //eprintln!("Issue. Status: {}", res.status());
     }
     String::from("Failed")
 }
