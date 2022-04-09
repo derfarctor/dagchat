@@ -11,6 +11,10 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::str;
 
+// Used to update progress bar in cursive app
+// Each counter has 1000 ticks
+use cursive::utils::Counter;
+
 const ADDR_ENCODING: Encoding = new_encoding! {
     symbols: "13456789abcdefghijkmnopqrstuwxyz",
     check_trailing_bits: false,
@@ -154,6 +158,7 @@ pub fn send_message(
     message: String,
     node_url: &str,
     addr_prefix: &str,
+    counter: &Counter
 ) {
     let public_key_bytes = to_public_key(&target_address);
     let mut message = message.clone();
@@ -162,11 +167,13 @@ pub fn send_message(
         message.push_str(" ");
     }
     let public_key = ecies_ed25519::PublicKey::from_bytes(&public_key_bytes).unwrap();
+    counter.tick(50);
     //println!("Encrypting message for send: {}", message);
     let mut csprng = rand::thread_rng();
     let encrypted_bytes =
         ecies_ed25519::encrypt(&public_key, message.as_bytes(), &mut csprng).unwrap();
     let blocks_needed = ((60 + message.len()) / 32) + 1;
+    counter.tick(50);
     //println!("Blocks needed: {}", blocks_needed);
 
     let mut block_data = [0u8; 32];
@@ -182,8 +189,10 @@ pub fn send_message(
     let (mut last_block_hash, mut balance) = get_frontier_and_balance(sender_address, node_url);
     let mut link = [0u8; 32];
     let mut sub = String::from("change");
-
+    counter.tick(100);
+    let x = 800usize / blocks_needed;
     for block_num in 0..blocks_needed {
+        counter.tick(x);
         let start = 32 * block_num;
         let end = 32 * (block_num + 1);
         if block_num == blocks_needed - 1 {
