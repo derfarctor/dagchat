@@ -5,11 +5,13 @@ use cursive::theme::{BaseColor, BorderStyle, Color, PaletteColor, Theme};
 use cursive::traits::*;
 use cursive::utils::markup::StyledString;
 use cursive::views::{
+    ScrollView,
     Button, Dialog, DummyView, EditView, LinearLayout, ProgressBar, RadioGroup, SelectView,
     TextArea, TextView,
 };
 use cursive::Cursive;
 use std::str::FromStr;
+use std::convert::TryFrom;
 
 mod lib;
 
@@ -17,6 +19,7 @@ pub struct Data {
     pub account: Account,
     pub prefix: String,
     pub coin: String,
+    pub ticker: String,
     pub node_url: String,
     pub colour: Color,
 }
@@ -49,6 +52,7 @@ impl Data {
             account: Default::default(),
             coin: String::from("nano"),
             prefix: String::from("nano_"),
+            ticker: String::from("Ӿ"),
             node_url: String::from("https://app.natrium.io/api"),
             colour: L_BLUE,
         }
@@ -96,6 +100,7 @@ fn main() {
             s.with_user_data(|data: &mut Data| {
                 data.coin = String::from("banano");
                 data.prefix = String::from("ban_");
+                data.ticker = String::from("BAN");
                 data.node_url = String::from("https://kaliumapi.appditto.com/api");
                 data.colour = YELLOW;
             });
@@ -115,35 +120,6 @@ fn main() {
             .title("Ӿdagchat v.1.0.0")
             .h_align(HAlign::Center),
     );
-    /*
-
-                LinearLayout::horizontal()
-            .child(Button::new_raw("nano", move |s| {
-                let vibrant = theme_group.selection();
-                if *vibrant {
-                    set_theme(s, "nano", true);
-                }
-                show_start(s);
-            }))
-            .child(Button::new_raw("banano", move |s| {
-                let vibrant = theme_group.selection();
-                if *vibrant {
-                    set_theme(s, "banano", true);
-                } else {
-                    set_theme(s, "banano", false);
-                }
-                s.with_user_data(|data: &mut Data| {
-                    data.coin = String::from("banano");
-                    data.prefix = String::from("ban_");
-                    data.node_url = String::from("https://kaliumapi.appditto.com/api");
-                    data.colour = YELLOW;
-                });
-                show_start(s);
-            })))
-            .child(radios))
-                ,
-        );
-    */
     siv.run();
 }
 
@@ -179,7 +155,7 @@ fn show_send(s: &mut Cursive) {
         s.add_layer(
             Dialog::around(TextView::new(no_balance_message))
                 .h_align(HAlign::Center)
-                .button("Menu", |s| return_to_menu(s))
+                .button("Menu", |s| show_menu(s))
                 .button("Copy Address", move |s| {
                     let mut clipboard = Clipboard::new().unwrap();
                     clipboard.set_text(address.clone()).unwrap();
@@ -229,31 +205,23 @@ fn show_send(s: &mut Cursive) {
                             if address.is_empty() {
                                 s.add_layer(Dialog::info(
                                     "You must provide an address to send the message to!",
-                                ))
+                                ));
+                                return;
+                            }
+                            if message.is_empty() {
+                                s.add_layer(Dialog::info(
+                                    "You must provide message content to send a message!",
+                                ));
+                                return;
                             }
                             let valid = lib::validate_address(&address);
                             if !valid {
-                                s.add_layer(Dialog::info("The recipient's address is invalid."))
+                                s.add_layer(Dialog::info("The recipient's address is invalid."));
+                                return;
                             }
-                            s.add_layer(Dialog::around(TextView::new("Sending message...")));
-
-                            let data = &s.user_data::<Data>().unwrap();
-                            let private_key_bytes = data.account.private_key;
-                            let prefix = &data.prefix;
-                            let node_url = &data.node_url;
-                            lib::send_message(
-                                &private_key_bytes,
-                                address,
-                                message,
-                                node_url,
-                                prefix,
-                            );
-
-                            // Message sent.
-                            s.pop_layer();
-                            s.add_layer(Dialog::info("Message sent successfully!"));
+                            process_send(s, message, address);
                         }))
-                        .child(Button::new("Cancel", |s| return_to_menu(s))),
+                        .child(Button::new("Cancel", |s| show_menu(s))),
                 ),
         )
         .title("Send a message")
@@ -265,8 +233,35 @@ fn go_back(s: &mut Cursive) {
     s.pop_layer();
 }
 
+fn process_send(s: &mut Cursive, message: String, address: String) {
+    let ticks = 1000;
+    let cb = s.cb_sink().clone();
+    let data = &s.user_data::<Data>().unwrap();
+    let node_url = data.node_url.clone();
+    let private_key_bytes = data.account.private_key;
+    let prefix = data.prefix.clone();
+    s.pop_layer();
+    s.add_layer(Dialog::around(
+        ProgressBar::new()
+            .range(0, ticks)
+            .with_task(move |counter| {
+                lib::send_message(&private_key_bytes, address, message, &node_url, &prefix, &counter);
+                cb.send(Box::new(show_sent)).unwrap();
+            })
+            .full_width(),
+    ));
+    s.set_autorefresh(true);
+}
+
+fn show_sent(s: &mut Cursive) {
+    s.set_autorefresh(false);
+    s.pop_layer();
+    show_menu(s);
+    s.add_layer(Dialog::info("Message sent successfully!"));
+}
+
 fn load_receivables(s: &mut Cursive, initial: bool) {
-    let ticks = 100;
+    let ticks = 1000;
 
     let cb = s.cb_sink().clone();
 
@@ -280,9 +275,9 @@ fn load_receivables(s: &mut Cursive, initial: bool) {
             .range(0, ticks)
             .with_task(move |counter| {
                 let mut receivables = lib::find_incoming(&target_address, &node_url);
-                counter.tick(20);
+                counter.tick(200);
                 if !receivables.is_empty() {
-                    let x = 80u64 / (receivables.len() as u64);
+                    let x = 800usize / receivables.len();
                     for receivable in &mut receivables {
                         if initial {
                             if receivable.amount == 1 {
@@ -291,7 +286,7 @@ fn load_receivables(s: &mut Cursive, initial: bool) {
                         } else {
                             receivable.message = lib::has_message(&receivable.hash, &node_url);
                         }
-                        counter.tick(x as usize);
+                        counter.tick(x);
                     }
                 }
                 cb.send(Box::new(move |s| {
@@ -314,23 +309,23 @@ fn show_receive(s: &mut Cursive, initial: bool) {
     if data.account.receivables.is_empty() {
         s.set_user_data(data);
         let content = "You don't have any receivables or incoming messages!";
-        s.add_layer(Dialog::around(TextView::new(content)).button("Menu", |s| return_to_menu(s)));
+        s.add_layer(Dialog::around(TextView::new(content)).button("Menu", |s| show_menu(s)));
         return;
     }
 
     let buttons = LinearLayout::vertical()
-        .child(Button::new("Check for messages", |s| {
+        .child(Button::new("Find messages", |s| {
             load_receivables(s, false)
         }))
         .child(Button::new("Refresh", |s| load_receivables(s, true)))
         .child(DummyView)
-        .child(Button::new("Menu", |s| return_to_menu(s)));
+        .child(Button::new("Menu", |s| show_menu(s)));
 
     let select = SelectView::<String>::new()
         .on_submit(show_message_info)
         .with_name("select")
         .scrollable()
-        .fixed_size((30, 20));
+        .max_height(15);
     s.add_layer(
         Dialog::around(
             LinearLayout::horizontal()
@@ -342,7 +337,10 @@ fn show_receive(s: &mut Cursive, initial: bool) {
     );
 
     if initial {
-        s.add_layer(Dialog::info("Info for beta users:\nThis is the inbox. Messages sent with 1 raw have already been identified as messages, but messages sent with an arbitrary amount will not yet have been detected. Select 'Check messages' from the buttons on the right to find these.").max_width(60));
+
+        let mut info = StyledString::plain("Information for pre-alpha testers:\n");
+        info.append(StyledString::styled("This is the inbox. Messages sent with 1 raw have already been identified as messages, but messages sent with an arbitrary amount will not yet have been detected. Select 'Find messages' from the buttons on the right to find these.", OFF_WHITE));
+        s.add_layer(Dialog::around(TextView::new(info)).dismiss_button("Go to inbox").max_width(60));
     }
     for receivable in &data.account.receivables {
         let mut tag;
@@ -352,19 +350,17 @@ fn show_receive(s: &mut Cursive, initial: bool) {
             if receivable.amount < 1000000 {
                 tag = format!("{} raw", receivable.amount);
             } else {
-                eprint!("{}\n", receivable.amount);
                 let raw = BigDecimal::from_str(&receivable.amount.to_string()).unwrap();
                 let multi = BigDecimal::from_str("100000000000000000000000000000").unwrap();
-                eprint!("{}\n{}", raw, multi);
                 let x = raw / multi;
-                tag = format!("{}", x.to_string());
+                tag = format!("{} {}", x.to_string(), data.ticker);
             }
             if receivable.message.is_some() {
-                tag = format!("{} with message", tag);
+                tag = format!("{} + Msg", tag);
             }
         }
-        let addr = receivable.source.get(0..13).unwrap();
-        tag = format!("{} from {}", tag, addr);
+        let addr = receivable.source.get(0..11).unwrap();
+        tag = format!("{} > {}", addr, tag);
         s.call_on_name("select", |view: &mut SelectView<String>| {
             view.add_item_str(&tag)
         });
@@ -372,7 +368,7 @@ fn show_receive(s: &mut Cursive, initial: bool) {
     s.set_user_data(data);
 }
 
-fn show_message_info(s: &mut Cursive, name: &str) {
+fn show_message_info(s: &mut Cursive, _name: &str) {
     let select = s.find_name::<SelectView<String>>("select").unwrap();
     //eprintln!("Showmessageinfo");
     match select.selected_id() {
@@ -396,13 +392,27 @@ fn show_message_info(s: &mut Cursive, name: &str) {
                 } else {
                     plaintext = message.plaintext.clone();
                 }
-                s.add_layer(Dialog::info(format!("Message: {}", plaintext)));
+                let sender = receivable.source.clone();
+
+                let buttons = LinearLayout::horizontal()
+                .child(Button::new("Mark read", |s| {
+                    //receive
+                }))
+                .child(Button::new("Back", |s| { go_back(s) }));
+
+                s.add_layer(Dialog::around(LinearLayout::vertical()
+                .child(TextView::new(plaintext).scrollable().max_size((65, 10)))
+                .child(DummyView)
+                .child(TextView::new("From"))
+                .child(TextView::new(StyledString::styled(sender, OFF_WHITE)))
+                .child(DummyView)
+                .child(buttons)
+                ).h_align(HAlign::Center).title("Message"));
             } else {
                 s.add_layer(Dialog::info("no msg"));
             }
         }
     }
-    //s.add_layer(Dialog::around(TextView::new(content)).button("Back", |s| return_to_menu(s)));
 }
 
 fn get_mnemonic(s: &mut Cursive) {
@@ -460,14 +470,14 @@ fn set_mnemonic(s: &mut Cursive, mnemonic: &str) {
             data.account.address = address;
         });
         content = "Successfully imported account.";
-        s.add_layer(Dialog::around(TextView::new(content)).button("Menu", |s| return_to_menu(s)));
+        s.add_layer(Dialog::around(TextView::new(content)).button("Menu", |s| show_menu(s)));
     } else {
         content = "The mnemonic you entered was not valid.";
         s.add_layer(Dialog::around(TextView::new(content)).button("Back", |s| get_mnemonic(s)));
     }
 }
 
-fn return_to_menu(s: &mut Cursive) {
+fn show_menu(s: &mut Cursive) {
     s.pop_layer();
     s.add_layer(
         Dialog::around(TextView::new("What would you like to do?"))
@@ -489,7 +499,7 @@ fn set_theme(s: &mut Cursive, style: &str, vibrant: bool) {
 }
 
 fn get_banano_theme(mut base: Theme, v: bool) -> Theme {
-    if (v) {
+    if v {
         base.shadow = true;
         base.palette[PaletteColor::Background] = YELLOW;
     } else {
@@ -508,7 +518,7 @@ fn get_banano_theme(mut base: Theme, v: bool) -> Theme {
 }
 
 fn get_nano_theme(mut base: Theme, v: bool) -> Theme {
-    if (v) {
+    if v {
         base.shadow = true;
         base.palette[PaletteColor::Background] = L_BLUE;
         base.palette[PaletteColor::Shadow] = D_BLUE;
