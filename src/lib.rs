@@ -10,6 +10,9 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::str;
+use bigdecimal::BigDecimal;
+use std::convert::TryFrom;
+use std::str::FromStr;
 
 // Used to update progress bar in cursive app
 // Each counter has 1000 ticks
@@ -20,6 +23,7 @@ const ADDR_ENCODING: Encoding = new_encoding! {
     check_trailing_bits: false,
 };
 
+const MULTI: &str = "100000000000000000000000000000";
 
 #[derive(Serialize, Deserialize, Debug)]
 struct AccountInfoResponse {
@@ -186,7 +190,7 @@ pub fn send_message(
     let sender_address = get_address(sender_pub.as_bytes(), addr_prefix);
 
     // Set up the previous block hash and balance to start publishing blocks
-    let (mut last_block_hash, mut balance) = get_frontier_and_balance(sender_address, node_url);
+    let (mut last_block_hash, mut balance) = get_frontier_and_balance(&sender_address, node_url);
     let mut link = [0u8; 32];
     let mut sub = String::from("change");
     counter.tick(100);
@@ -327,10 +331,10 @@ pub fn get_block_info(hash: &str, node_url: &str) -> Option<BlockResponse> {
     Some(block_response)
 }
 
-pub fn get_frontier_and_balance(address: String, node_url: &str) -> ([u8; 32], u128) {
+pub fn get_frontier_and_balance(address: &str, node_url: &str) -> ([u8; 32], u128) {
     let body_json = json!({
         "action": "account_info",
-        "account": address
+        "account": String::from(address)
     });
     let body = body_json.to_string();
     let resp_string = post_node(body, node_url);
@@ -611,24 +615,30 @@ pub fn get_num_equivalent(mnemonic: &str) -> ([u16; 24], bool) {
     (num_mnemonic, true)
 }
 
-pub fn display_ban_dp(raw: u128, dp: usize) -> String {
-    // Does the job. Sorry.
-    let mut temp = (raw / 10u128.pow(29u32-dp as u32)).to_string();
-    while temp.len() < dp+1 {
-        temp.insert(0, '0');
-    }
-    temp.insert(temp.len()-dp, '.');
-    temp = temp.trim_end_matches("0").to_string();
-    temp = temp.trim_start_matches("0").to_string();
-    if temp.starts_with(".") {
-        temp.insert(0, '0');
-        while temp.len() < dp+2 {
-            temp.insert(temp.len(), '0');
+pub fn display_to_dp(raw: u128, dp: usize, ticker: &str) -> String {
+    if raw < 100000 {
+        return format!("{} raw", raw);
+    } else {
+        let raw_string = raw.to_string();
+        let raw = BigDecimal::from_str(&raw_string).unwrap();
+        let multi = BigDecimal::from_str(MULTI).unwrap();
+        let adjusted = raw/multi;
+        let mut s = adjusted.to_string();
+
+        // If decimal part, trim to dp
+        if s.contains(".") {
+            let mut parts: Vec<&str> = s.split(".").collect();
+            let real_dp = parts[1].len();
+            if real_dp > dp {
+                parts[1] = parts[1].get(0..dp).unwrap();
+            }
+            s = format!("{}.{}{}", parts[0], parts[1], ticker);
+        } else {
+            s = format!("{} {}", s, ticker);
         }
-    } else if temp.ends_with(".") {
-        temp = temp.strip_suffix(".").unwrap().to_string();
+
+        return s;
     }
-    temp
 }
 
 pub static WORD_LIST: [&str; 2048] = [

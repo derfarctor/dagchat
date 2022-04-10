@@ -1,17 +1,13 @@
 use arboard::Clipboard;
-use bigdecimal::BigDecimal;
 use cursive::align::HAlign;
 use cursive::theme::{BaseColor, BorderStyle, Color, PaletteColor, Theme};
 use cursive::traits::*;
 use cursive::utils::markup::StyledString;
 use cursive::views::{
-    ScrollView,
     Button, Dialog, DummyView, EditView, LinearLayout, ProgressBar, RadioGroup, SelectView,
     TextArea, TextView,
 };
 use cursive::Cursive;
-use std::str::FromStr;
-use std::convert::TryFrom;
 
 mod lib;
 
@@ -59,7 +55,7 @@ impl Data {
     }
 }
 
-const VERSION: &str = "1.0.0";
+const VERSION: &str = "pre-alpha v1.0.0";
 
 const L_BLUE: Color = Color::Rgb(62, 138, 227);
 const M_BLUE: Color = Color::Rgb(0, 106, 255);
@@ -70,7 +66,7 @@ const OFF_WHITE: Color = Color::Rgb(245, 245, 247);
 
 fn main() {
     let mut siv = cursive::default();
-    siv.set_window_title(format!("dagchat v{}", VERSION));
+    siv.set_window_title(format!("dagchat {}", VERSION));
     let data = Data::new();
     siv.set_user_data(data);
     set_theme(&mut siv, "nano", false);
@@ -100,7 +96,7 @@ fn main() {
             s.with_user_data(|data: &mut Data| {
                 data.coin = String::from("banano");
                 data.prefix = String::from("ban_");
-                data.ticker = String::from("BAN");
+                data.ticker = String::from(" BAN");
                 data.node_url = String::from("https://kaliumapi.appditto.com/api");
                 data.colour = YELLOW;
             });
@@ -143,7 +139,7 @@ fn show_send(s: &mut Cursive) {
     let mut address = String::from("");
     s.with_user_data(|data: &mut Data| {
         address = data.account.address.clone();
-        let (_, balance) = lib::get_frontier_and_balance(address.clone(), &data.node_url);
+        let (_, balance) = lib::get_frontier_and_balance(&address, &data.node_url);
         data.account.balance = balance;
         if data.account.balance > 0 {
             empty = false;
@@ -155,8 +151,8 @@ fn show_send(s: &mut Cursive) {
         s.add_layer(
             Dialog::around(TextView::new(no_balance_message))
                 .h_align(HAlign::Center)
-                .button("Menu", |s| show_menu(s))
-                .button("Copy Address", move |s| {
+                .button("Back", |s| show_receive(s, false))
+                .button("Copy Address", move |_| {
                     let mut clipboard = Clipboard::new().unwrap();
                     clipboard.set_text(address.clone()).unwrap();
                 })
@@ -221,7 +217,7 @@ fn show_send(s: &mut Cursive) {
                             }
                             process_send(s, message, address);
                         }))
-                        .child(Button::new("Cancel", |s| show_menu(s))),
+                        .child(Button::new("Cancel", |s| show_receive(s, false))),
                 ),
         )
         .title("Send a message")
@@ -245,7 +241,14 @@ fn process_send(s: &mut Cursive, message: String, address: String) {
         ProgressBar::new()
             .range(0, ticks)
             .with_task(move |counter| {
-                lib::send_message(&private_key_bytes, address, message, &node_url, &prefix, &counter);
+                lib::send_message(
+                    &private_key_bytes,
+                    address,
+                    message,
+                    &node_url,
+                    &prefix,
+                    &counter,
+                );
                 cb.send(Box::new(show_sent)).unwrap();
             })
             .full_width(),
@@ -256,8 +259,7 @@ fn process_send(s: &mut Cursive, message: String, address: String) {
 fn show_sent(s: &mut Cursive) {
     s.set_autorefresh(false);
     s.pop_layer();
-    show_menu(s);
-    s.add_layer(Dialog::info("Message sent successfully!"));
+    s.add_layer(Dialog::text("Message sent successfully!").button("Back", |s| {show_receive(s, false)}));
 }
 
 fn load_receivables(s: &mut Cursive, initial: bool) {
@@ -268,14 +270,15 @@ fn load_receivables(s: &mut Cursive, initial: bool) {
     let data = &s.user_data::<Data>().unwrap();
     let node_url = data.node_url.clone();
     let target_address = data.account.address.clone();
-
     s.pop_layer();
     s.add_layer(Dialog::around(
         ProgressBar::new()
             .range(0, ticks)
             .with_task(move |counter| {
+                let (_, balance) = lib::get_frontier_and_balance(&target_address, &node_url);
+                counter.tick(50);
                 let mut receivables = lib::find_incoming(&target_address, &node_url);
-                counter.tick(200);
+                counter.tick(150);
                 if !receivables.is_empty() {
                     let x = 800usize / receivables.len();
                     for receivable in &mut receivables {
@@ -284,14 +287,35 @@ fn load_receivables(s: &mut Cursive, initial: bool) {
                                 receivable.message = lib::has_message(&receivable.hash, &node_url);
                             }
                         } else {
-                            receivable.message = lib::has_message(&receivable.hash, &node_url);
+                            if receivable.amount != 1 {
+                                receivable.message = lib::has_message(&receivable.hash, &node_url);
+                            }
                         }
                         counter.tick(x);
                     }
                 }
                 cb.send(Box::new(move |s| {
                     let data = &mut s.user_data::<Data>().unwrap();
-                    data.account.receivables = receivables;
+                    if !initial {
+                        for rx in receivables {
+                            let existing_idx = data
+                                .account
+                                .receivables
+                                .iter()
+                                .position(|r| &r.hash == &rx.hash);
+                            if rx.message.is_none() {
+                                continue;
+                            };
+                            if existing_idx.is_none() {
+                                data.account.receivables.push(rx);
+                            } else {
+                                data.account.receivables[existing_idx.unwrap()] = rx;
+                            }
+                        }
+                    } else {
+                        data.account.receivables = receivables;
+                    }
+                    data.account.balance = balance;
                     show_receive(s, initial);
                 }))
                 .unwrap();
@@ -306,55 +330,56 @@ fn show_receive(s: &mut Cursive, initial: bool) {
     s.pop_layer();
     let data: Data = s.take_user_data().unwrap();
 
-    if data.account.receivables.is_empty() {
-        s.set_user_data(data);
-        let content = "You don't have any receivables or incoming messages!";
-        s.add_layer(Dialog::around(TextView::new(content)).button("Menu", |s| show_menu(s)));
-        return;
-    }
-
     let buttons = LinearLayout::vertical()
-        .child(Button::new("Find messages", |s| {
-            load_receivables(s, false)
-        }))
+        .child(Button::new("Send", |s| show_send(s)))
+        .child(Button::new("Find messages", |s| load_receivables(s, false)))
         .child(Button::new("Refresh", |s| load_receivables(s, true)))
         .child(DummyView)
-        .child(Button::new("Menu", |s| show_menu(s)));
+        .child(Button::new("Quit", |s| s.quit()));
 
     let select = SelectView::<String>::new()
         .on_submit(show_message_info)
         .with_name("select")
         .scrollable()
-        .max_height(15);
+        .max_height(6);
+
+    let bal = lib::display_to_dp(data.account.balance, 5, &data.ticker);
+    let bal_content = TextView::new(format!("Balance: {}", bal));
     s.add_layer(
         Dialog::around(
             LinearLayout::horizontal()
-                .child(select)
+                .child(
+                    LinearLayout::vertical()
+                        .child(DummyView)
+                        .child(bal_content)
+                        .child(DummyView)
+                        .child(
+                            Dialog::around(select)
+                                .padding_lrtb(1, 1, 1, 1)
+                                .title("Receivables"),
+                        ),
+                )
                 .child(DummyView)
-                .child(buttons),
+                .child(DummyView)
+                .child(LinearLayout::vertical().child(DummyView).child(buttons)),
         )
-        .title("Receivables"),
+        .title(format!("dagchat {}", VERSION)),
     );
-
     if initial {
-
         let mut info = StyledString::plain("Information for pre-alpha testers:\n");
         info.append(StyledString::styled("This is the inbox. Messages sent with 1 raw have already been identified as messages, but messages sent with an arbitrary amount will not yet have been detected. Select 'Find messages' from the buttons on the right to find these.", OFF_WHITE));
-        s.add_layer(Dialog::around(TextView::new(info)).dismiss_button("Go to inbox").max_width(60));
+        s.add_layer(
+            Dialog::around(TextView::new(info))
+                .dismiss_button("Go to inbox")
+                .max_width(60),
+        );
     }
     for receivable in &data.account.receivables {
         let mut tag;
         if receivable.amount == 1 && receivable.message.is_some() {
             tag = String::from("Message");
         } else {
-            if receivable.amount < 1000000 {
-                tag = format!("{} raw", receivable.amount);
-            } else {
-                let raw = BigDecimal::from_str(&receivable.amount.to_string()).unwrap();
-                let multi = BigDecimal::from_str("100000000000000000000000000000").unwrap();
-                let x = raw / multi;
-                tag = format!("{} {}", x.to_string(), data.ticker);
-            }
+            tag = lib::display_to_dp(receivable.amount, 5, &data.ticker);
             if receivable.message.is_some() {
                 tag = format!("{} + Msg", tag);
             }
@@ -370,47 +395,69 @@ fn show_receive(s: &mut Cursive, initial: bool) {
 
 fn show_message_info(s: &mut Cursive, _name: &str) {
     let select = s.find_name::<SelectView<String>>("select").unwrap();
-    //eprintln!("Showmessageinfo");
     match select.selected_id() {
         None => s.add_layer(Dialog::info("No receivable selected.")),
         Some(focus) => {
             let data = &mut s.user_data::<Data>().unwrap();
-            //select.remove_item(focus);
             let receivable = &mut data.account.receivables[focus];
-            //eprintln!("{:?}", receivable);
             let private_key = &data.account.private_key;
             let node_url = &data.node_url;
             let plaintext: String;
+
+            let mut content = LinearLayout::vertical();
+            let mut title = format!("{} Receivable", &data.ticker);
+            let mut receive_label = String::from("");
             if receivable.message.is_some() {
+                receive_label = String::from(" and mark read");
+                title = String::from("Message");
                 let mut message = receivable.message.as_mut().unwrap();
                 if message.plaintext.is_empty() {
+                    // Potential feature: Confirm option with message length in chars (estimated)
+                    // removes ability for attacks such as extremely long messages although probably
+                    // not an issue. Harder to send a long message than read.
                     let target = &message.head.as_mut().unwrap().contents.account;
                     let root_hash = &message.root_hash;
                     let blocks = message.blocks;
+                    // Potential feature: Add loading screen + process_message()
+                    // time taken to load a (long) message can be noticeable if node
+                    // is under load.
                     plaintext = lib::read_message(private_key, target, root_hash, blocks, node_url);
                     message.plaintext = plaintext.clone();
                 } else {
                     plaintext = message.plaintext.clone();
                 }
-                let sender = receivable.source.clone();
-
-                let buttons = LinearLayout::horizontal()
-                .child(Button::new("Mark read", |s| {
-                    //receive
-                }))
-                .child(Button::new("Back", |s| { go_back(s) }));
-
-                s.add_layer(Dialog::around(LinearLayout::vertical()
-                .child(TextView::new(plaintext).scrollable().max_size((65, 10)))
-                .child(DummyView)
-                .child(TextView::new("From"))
-                .child(TextView::new(StyledString::styled(sender, OFF_WHITE)))
-                .child(DummyView)
-                .child(buttons)
-                ).h_align(HAlign::Center).title("Message"));
-            } else {
-                s.add_layer(Dialog::info("no msg"));
+                content.add_child(
+                    TextView::new(plaintext)
+                        .scrollable()
+                        .fixed_width(65)
+                        .max_height(6),
+                );
+                content.add_child(DummyView);
             }
+            let colour = data.colour;
+            if !(receivable.amount == 1 && receivable.message.is_some()) {
+                receive_label = format!("Receive{}", receive_label);
+                let amount = lib::display_to_dp(receivable.amount, 5, &data.ticker);
+                content.add_child(TextView::new(StyledString::styled("Amount", colour)));
+                content.add_child(TextView::new(StyledString::styled(amount, OFF_WHITE)));
+                content.add_child(DummyView);
+            } else {
+                receive_label = String::from("Mark read");
+            }
+            let sender = receivable.source.clone();
+            content.add_child(TextView::new(StyledString::styled("From", colour)));
+            content
+                .add_child(TextView::new(StyledString::styled(sender, OFF_WHITE)).fixed_width(65));
+
+            s.add_layer(
+                Dialog::around(content)
+                    .button(receive_label, |s| {
+                        //after mark as read
+                        //select.remove_item(focus);
+                    })
+                    .button("Back", |s| go_back(s))
+                    .title(title),
+            );
         }
     }
 }
@@ -470,22 +517,13 @@ fn set_mnemonic(s: &mut Cursive, mnemonic: &str) {
             data.account.address = address;
         });
         content = "Successfully imported account.";
-        s.add_layer(Dialog::around(TextView::new(content)).button("Menu", |s| show_menu(s)));
+        s.add_layer(
+            Dialog::around(TextView::new(content)).button("Begin", |s| load_receivables(s, true)),
+        );
     } else {
         content = "The mnemonic you entered was not valid.";
         s.add_layer(Dialog::around(TextView::new(content)).button("Back", |s| get_mnemonic(s)));
     }
-}
-
-fn show_menu(s: &mut Cursive) {
-    s.pop_layer();
-    s.add_layer(
-        Dialog::around(TextView::new("What would you like to do?"))
-            .title("Main menu")
-            .h_align(HAlign::Center)
-            .button("Send", |s| show_send(s))
-            .button("Receive", |s| load_receivables(s, true)),
-    );
 }
 
 fn set_theme(s: &mut Cursive, style: &str, vibrant: bool) {
