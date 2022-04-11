@@ -1,3 +1,4 @@
+use bigdecimal::BigDecimal;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use data_encoding::Encoding;
@@ -10,9 +11,9 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::str;
-use bigdecimal::BigDecimal;
-use std::convert::TryFrom;
 use std::str::FromStr;
+// Will do something dynamic with reps in future
+use crate::defaults;
 
 // Used to update progress bar in cursive app
 // Each counter has 1000 ticks
@@ -26,7 +27,7 @@ const ADDR_ENCODING: Encoding = new_encoding! {
 const MULTI: &str = "100000000000000000000000000000";
 
 #[derive(Serialize, Deserialize, Debug)]
-struct AccountInfoResponse {
+pub struct AccountInfoResponse {
     frontier: String,
     open_block: String,
     representative_block: String,
@@ -36,6 +37,7 @@ struct AccountInfoResponse {
     account_version: String,
     confirmation_height: String,
     confirmation_height_frontier: String,
+    representative: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -82,7 +84,7 @@ pub struct Receivable {
     pub message: Option<Message>,
     pub amount: u128,
     // Used for seeing message sender in app
-    pub source: String
+    pub source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -90,7 +92,7 @@ pub struct Message {
     pub head: Option<BlockResponse>,
     pub root_hash: String,
     pub blocks: u64,
-    pub plaintext: String
+    pub plaintext: String,
 }
 
 impl Default for Message {
@@ -99,7 +101,7 @@ impl Default for Message {
             head: None,
             root_hash: String::from(""),
             blocks: 0,
-            plaintext: String::from("")
+            plaintext: String::from(""),
         }
     }
 }
@@ -159,10 +161,11 @@ pub struct HistoryResponse {
 pub fn send_message(
     private_key_bytes: &[u8; 32],
     target_address: String,
+    raw: u128,
     message: String,
     node_url: &str,
     addr_prefix: &str,
-    counter: &Counter
+    counter: &Counter,
 ) {
     let public_key_bytes = to_public_key(&target_address);
     let mut message = message.clone();
@@ -190,7 +193,12 @@ pub fn send_message(
     let sender_address = get_address(sender_pub.as_bytes(), addr_prefix);
 
     // Set up the previous block hash and balance to start publishing blocks
-    let (mut last_block_hash, mut balance) = get_frontier_and_balance(&sender_address, node_url);
+    // Also note the representative from before sending, in order to change back afterwards
+    let account_info = get_account_info(&sender_address, node_url).unwrap();
+    let mut last_block_hash = get_32_bytes(&account_info.frontier);
+    let mut balance = get_balance(&account_info);
+    let representative = to_public_key(&account_info.representative);
+
     let mut link = [0u8; 32];
     let mut sub = String::from("change");
     counter.tick(100);
@@ -204,7 +212,7 @@ pub fn send_message(
             // Link is the recipient
             // Rep is the hash of the first block in the message
             block_data = first_block_hash;
-            balance -= 1;
+            balance -= raw;
             link = public_key_bytes;
             sub = String::from("send");
         } else {
@@ -231,12 +239,148 @@ pub fn send_message(
             first_block_hash = block_hash;
         }
         last_block_hash = block_hash;
-        //println!("{}", block.to_string());
-        let _hash = publish_block(block, sub.clone(), node_url);
-        //println!("{}", hash);
+        publish_block(block, sub.clone(), node_url);
     }
+    // Change representative to what it was at the start
+    link = [0u8; 32];
+    sub = String::from("change");
+    let block_hash = get_block_hash(
+        private_key_bytes,
+        &representative,
+        &last_block_hash,
+        &link,
+        balance,
+    );
+    let block = get_signed_block(
+        private_key_bytes,
+        &representative,
+        &last_block_hash,
+        &link,
+        balance,
+        &block_hash,
+        &addr_prefix,
+    );
+    publish_block(block, sub.clone(), node_url);
 }
 
+pub fn change_rep(
+    private_key_bytes: &[u8; 32],
+    account_info: AccountInfoResponse,
+    rep_address: &str,
+    node_url: &str,
+    addr_prefix: &str,
+) {
+    let last_block_hash = get_32_bytes(&account_info.frontier);
+    let balance = get_balance(&account_info);
+    let representative = to_public_key(rep_address);
+    let link = [0u8; 32];
+    let block_hash = get_block_hash(
+        private_key_bytes,
+        &representative,
+        &last_block_hash,
+        &link,
+        balance,
+    );
+    let block = get_signed_block(
+        private_key_bytes,
+        &representative,
+        &last_block_hash,
+        &link,
+        balance,
+        &block_hash,
+        addr_prefix,
+    );
+    publish_block(block, String::from("change"), node_url);
+}
+pub fn receive_block(
+    private_key_bytes: &[u8; 32],
+    send_block: &str,
+    amount: u128,
+    address: &str,
+    node_url: &str,
+    addr_prefix: &str,
+    counter: &Counter,
+) {
+    let account_info_opt = get_account_info(address, node_url);
+    counter.tick(300);
+    let mut last_block_hash = [0u8; 32];
+    let mut new_balance = amount;
+    let representative: [u8; 32];
+    let link = get_32_bytes(send_block);
+    if account_info_opt.is_none() {
+        // OPEN BLOCK
+        if addr_prefix == "nano_" {
+            representative = to_public_key(defaults::DEFAULT_REP_NANO);
+        } else if addr_prefix == "ban_" {
+            representative = to_public_key(defaults::DEFAULT_REP_BANANO);
+        } else {
+            panic!("Unknown network... no default rep to open account.");
+        }
+    } else {
+        let account_info = account_info_opt.unwrap();
+        last_block_hash = get_32_bytes(&account_info.frontier);
+        let balance = get_balance(&account_info);
+        new_balance = balance + amount;
+        representative = to_public_key(&account_info.representative);
+    }
+    counter.tick(200);
+    let block_hash = get_block_hash(
+        private_key_bytes,
+        &representative,
+        &last_block_hash,
+        &link,
+        new_balance,
+    );
+    let signed_block = get_signed_block(
+        private_key_bytes,
+        &representative,
+        &last_block_hash,
+        &link,
+        new_balance,
+        &block_hash,
+        addr_prefix,
+    );
+    counter.tick(200);
+    publish_block(signed_block, String::from("receive"), node_url);
+    counter.tick(200);
+}
+
+pub fn send(
+    private_key_bytes: &[u8; 32],
+    address: String,
+    raw: u128,
+    node_url: &str,
+    addr_prefix: &str,
+    counter: &Counter,
+) {
+    // Safe because account must be opened to have got this far
+    let account_info = get_account_info(&address, node_url).unwrap();
+    counter.tick(400);
+    let last_block_hash = get_32_bytes(&account_info.frontier);
+    let new_balance = get_balance(&account_info) - raw;
+    let representative = to_public_key(&account_info.representative);
+    let link = to_public_key(&address);
+    counter.tick(100);
+    let block_hash = get_block_hash(
+        private_key_bytes,
+        &representative,
+        &last_block_hash,
+        &link,
+        new_balance,
+    );
+    let signed_block = get_signed_block(
+        private_key_bytes,
+        &representative,
+        &last_block_hash,
+        &link,
+        new_balance,
+        &block_hash,
+        addr_prefix,
+    );
+    counter.tick(100);
+    publish_block(signed_block, String::from("send"), node_url);
+    counter.tick(400);
+}
 pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
     // Assured to exist before being passed to function
     let head_block = get_block_info(head_hash, node_url).unwrap();
@@ -252,7 +396,7 @@ pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
             blocks: message_block_count,
             head: Some(head_block),
             root_hash: root_hash,
-            plaintext: String::from("")
+            plaintext: String::from(""),
         };
         return Some(message);
     } else {
@@ -275,8 +419,11 @@ pub fn read_message(
     let expanded_bytes = ed25519_dalek::ExpandedSecretKey::from(&dalek);
     let private_key =
         ecies_ed25519::SecretKey::from_bytes(&expanded_bytes.to_bytes()[0..32]).unwrap();
-    let decrypted = ecies_ed25519::decrypt(&private_key, &encrypted_bytes).unwrap();
-    let plaintext = String::from_utf8(decrypted).unwrap();
+    let decrypted = ecies_ed25519::decrypt(&private_key, &encrypted_bytes);
+    if decrypted.is_err() {
+        return String::from("Error decrypting message.");
+    }
+    let plaintext = String::from_utf8(decrypted.unwrap()).unwrap();
     //println!("{}", plaintext);
     plaintext
 }
@@ -308,13 +455,12 @@ pub fn find_incoming(target_address: &str, node_url: &str) -> Vec<Receivable> {
             hash: block.0,
             amount: block.1.amount.parse().unwrap(),
             source: block.1.source,
-            message: Default::default()
+            message: Default::default(),
         });
     }
     incoming
 }
 
-// TODO: Bundle without tuple into single option
 pub fn get_block_info(hash: &str, node_url: &str) -> Option<BlockResponse> {
     let request = BlockRequest {
         action: String::from("block_info"),
@@ -331,32 +477,36 @@ pub fn get_block_info(hash: &str, node_url: &str) -> Option<BlockResponse> {
     Some(block_response)
 }
 
-pub fn get_frontier_and_balance(address: &str, node_url: &str) -> ([u8; 32], u128) {
+pub fn get_account_info(address: &str, node_url: &str) -> Option<AccountInfoResponse> {
+    // Change this to AccountInfoRequest struct
     let body_json = json!({
         "action": "account_info",
-        "account": String::from(address)
+        "account": String::from(address),
+        "representative": true
     });
+
     let body = body_json.to_string();
     let resp_string = post_node(body, node_url);
     if resp_string.contains("Account not found") {
-        return ([0u8; 32], 0);
+        return None;
     }
-    //eprintln!("Node response: {}", resp_string);
-    //println!("Raw response: {}", resp_string);
     let account_info: AccountInfoResponse = serde_json::from_str(&resp_string).unwrap();
-    let frontier_bytes = hex::decode(&account_info.frontier).unwrap();
-    let mut frontier = [0u8; 32];
-    frontier.copy_from_slice(frontier_bytes.as_slice());
-    let balance: u128 = account_info.balance.parse().unwrap();
-    (frontier, balance)
+    Some(account_info)
 }
 
-pub fn get_history(
-    target_address: &str,
-    head: &str,
-    length: u64,
-    node_url: &str,
-) -> Vec<Block> {
+pub fn get_32_bytes(string: &str) -> [u8; 32] {
+    let bytes = hex::decode(string).unwrap();
+    let mut array = [0u8; 32];
+    array.copy_from_slice(bytes.as_slice());
+    array
+}
+
+pub fn get_balance(info: &AccountInfoResponse) -> u128 {
+    let balance: u128 = info.balance.parse().unwrap();
+    balance
+}
+
+pub fn get_history(target_address: &str, head: &str, length: u64, node_url: &str) -> Vec<Block> {
     let request = HistoryRequest {
         action: String::from("account_history"),
         account: String::from(target_address),
@@ -381,6 +531,7 @@ pub fn extract_message(blocks: Vec<Block>) -> Vec<u8> {
     encrypted_bytes
 }
 
+// Could do with rework
 pub fn post_node(body: String, node_url: &str) -> String {
     let client = reqwest::blocking::Client::new();
     let res = client
@@ -400,6 +551,7 @@ pub fn post_node(body: String, node_url: &str) -> String {
     }
     String::from("Failed")
 }
+
 pub fn publish_block(block: Block, sub: String, node_url: &str) -> String {
     let request = ProcessRequest {
         action: String::from("process"),
@@ -570,6 +722,7 @@ pub fn validate_address(addr: &str) -> bool {
     encoded_addr.insert_str(0, "1111");
 
     let pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes());
+
     // Lazily catch decoding error - return false
     let mut pub_key_vec = match pub_key_vec {
         Ok(pub_key_vec) => pub_key_vec,
@@ -615,6 +768,27 @@ pub fn get_num_equivalent(mnemonic: &str) -> ([u16; 24], bool) {
     (num_mnemonic, true)
 }
 
+// Also validates if the amount submitted was possible
+pub fn whole_to_raw(whole: String) -> Option<u128> {
+    let amount = BigDecimal::from_str(&whole.trim());
+    if amount.is_err() {
+        return None;
+    }
+    let multi = BigDecimal::from_str(MULTI).unwrap();
+    let amount_raw = amount.unwrap() * multi;
+    if amount_raw.is_integer() {
+        let raw_string = amount_raw.with_scale(0).to_string();
+        let raw: u128 = raw_string.parse().unwrap();
+        if raw == 0 {
+            return None;
+        } else {
+            return Some(raw);
+        }
+    } else {
+        return None;
+    }
+}
+
 pub fn display_to_dp(raw: u128, dp: usize, ticker: &str) -> String {
     if raw < 100000 {
         return format!("{} raw", raw);
@@ -622,7 +796,7 @@ pub fn display_to_dp(raw: u128, dp: usize, ticker: &str) -> String {
         let raw_string = raw.to_string();
         let raw = BigDecimal::from_str(&raw_string).unwrap();
         let multi = BigDecimal::from_str(MULTI).unwrap();
-        let adjusted = raw/multi;
+        let adjusted = raw / multi;
         let mut s = adjusted.to_string();
 
         // If decimal part, trim to dp
@@ -634,7 +808,7 @@ pub fn display_to_dp(raw: u128, dp: usize, ticker: &str) -> String {
             }
             s = format!("{}.{}{}", parts[0], parts[1], ticker);
         } else {
-            s = format!("{} {}", s, ticker);
+            s = format!("{}{}", s, ticker);
         }
 
         return s;
