@@ -118,7 +118,7 @@ fn main() {
                     .child(DummyView)
                     .child(radios),
             )
-            .title("Ӿdagchat v.1.0.0")
+            .title(format!("dagchat {}", VERSION))
             .h_align(HAlign::Center),
     );
     siv.run();
