@@ -70,6 +70,12 @@ const YELLOW: Color = Color::Light(BaseColor::Yellow);
 const OFF_WHITE: Color = Color::Rgb(245, 245, 247);
 
 fn main() {
+    let backend_init = || -> std::io::Result<Box<dyn cursive::backend::Backend>> {
+        let backend = cursive::backends::crossterm::Backend::init()?;
+        let buffered_backend = cursive_buffered_backend::BufferedBackend::new(backend);
+        Ok(Box::new(buffered_backend))
+    };
+
     let mut siv = cursive::default();
     siv.set_window_title(format!("dagchat {}", VERSION));
     let data = Data::new();
@@ -121,7 +127,7 @@ fn main() {
             .title(format!("dagchat {}", VERSION))
             .h_align(HAlign::Center),
     );
-    siv.run();
+    siv.try_run_with(backend_init).ok().unwrap();
 }
 
 fn show_start(s: &mut Cursive) {
@@ -160,10 +166,7 @@ fn show_send(s: &mut Cursive, with_message: bool) {
             Dialog::around(TextView::new(no_balance_message))
                 .h_align(HAlign::Center)
                 .button("Back", |s| show_inbox(s))
-                .button("Copy Address", move |_| {
-                    let mut clipboard = Clipboard::new().unwrap();
-                    clipboard.set_text(address.clone()).unwrap();
-                })
+                .button("Copy Address", move |s| { copy_to_clip(s, address.clone()) })
                 .max_width(75),
         );
         return;
@@ -282,6 +285,7 @@ fn show_send(s: &mut Cursive, with_message: bool) {
                         ));
                         return;
                     } else {
+                        // The user supplied the amount 0
                         if raw == 0 {
                             s.add_layer(Dialog::info(format!(
                                 "You must provide an amount of {} to send!",
@@ -289,6 +293,15 @@ fn show_send(s: &mut Cursive, with_message: bool) {
                             )));
                             return;
                         }
+                    }
+                } else {
+                    if message.is_empty() {
+                        // The user supplied no amount and it's not a message
+                        s.add_layer(Dialog::info(format!(
+                            "You must provide an amount of {} to send!",
+                            coin
+                        )));
+                        return;
                     }
                 }
                 process_send(s, raw, address, message);
@@ -331,6 +344,7 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
             .with_task(move |counter| {
                 let with_message = !message.is_empty();
                 if !with_message {
+                    eprintln!("Not with message");
                     send(
                         &private_key_bytes,
                         address,
@@ -340,6 +354,7 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
                         &counter,
                     );
                 } else {
+                    eprintln!("With message");
                     send_message(
                         &private_key_bytes,
                         address,
@@ -572,7 +587,9 @@ fn copy_to_clip(s: &mut Cursive, string: String) {
         s.add_layer(Dialog::info("Error copying to clipboard."));
     } else {
         let mut content = StyledString::styled(format!("{}\n", string), OFF_WHITE);
-        content.append(StyledString::plain("was successfully copied to your clipboard."));
+        content.append(StyledString::plain(
+            "was successfully copied to your clipboard.",
+        ));
         s.add_layer(
             Dialog::around(TextView::new(content))
                 .dismiss_button("Back")
@@ -594,7 +611,9 @@ fn show_inbox(s: &mut Cursive) {
         .child(Button::new("Send message", |s| show_send(s, true)))
         .child(DummyView)
         .child(Button::new("Find messages", |s| load_receivables(s, false)))
-        .child(Button::new("Copy address", move |s| copy_to_clip(s, address.clone())))
+        .child(Button::new("Copy address", move |s| {
+            copy_to_clip(s, address.clone())
+        }))
         .child(Button::new("Change rep", |s| show_change_rep(s)))
         .child(DummyView)
         .child(Button::new("Quit", |s| s.quit()));
@@ -703,13 +722,14 @@ fn show_message_info(s: &mut Cursive, _name: &str) {
             let sender = receivable.source.clone();
             content.add_child(TextView::new(StyledString::styled("From", colour)));
             content
-                .add_child(TextView::new(StyledString::styled(sender, OFF_WHITE)).fixed_width(65));
+                .add_child(TextView::new(StyledString::styled(&sender, OFF_WHITE)).fixed_width(65));
 
             s.add_layer(
                 Dialog::around(content)
                     .button(receive_label, move |s| {
                         process_receive(s, focus);
                     })
+                    .button("Copy address", move |s| { copy_to_clip(s, sender.clone())})
                     .button("Back", |s| go_back(s))
                     .title(title),
             );
@@ -817,9 +837,9 @@ fn new_account(s: &mut Cursive) {
     s.pop_layer();
     let mut content = StyledString::plain("Successfully generated new account with seed: ");
     content.append(StyledString::styled(&entropy_hex, OFF_WHITE));
-    s.add_layer(Dialog::around(
-        TextView::new(content))
-            .button("Copy seed", move |s| { copy_to_clip(s, entropy_hex.clone())})
+    s.add_layer(
+        Dialog::around(TextView::new(content))
+            .button("Copy seed", move |s| copy_to_clip(s, entropy_hex.clone()))
             .button("Begin", |s| alpha_info(s)),
     );
 }
