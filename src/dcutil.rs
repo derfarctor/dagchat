@@ -353,8 +353,14 @@ pub fn send(
     addr_prefix: &str,
     counter: &Counter,
 ) {
+    // Derive sender's address
+    let sender_pub = ed25519_dalek::PublicKey::from(
+        &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
+    );
+    let sender_address = get_address(sender_pub.as_bytes(), addr_prefix);
+
     // Safe because account must be opened to have got this far
-    let account_info = get_account_info(&address, node_url).unwrap();
+    let account_info = get_account_info(&sender_address, node_url).unwrap();
     counter.tick(400);
     let last_block_hash = get_32_bytes(&account_info.frontier);
     let new_balance = get_balance(&account_info) - raw;
@@ -378,7 +384,8 @@ pub fn send(
         addr_prefix,
     );
     counter.tick(100);
-    publish_block(signed_block, String::from("send"), node_url);
+    let hash = publish_block(signed_block, String::from("send"), node_url);
+    eprintln!("{}", hash);
     counter.tick(400);
 }
 pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
