@@ -384,8 +384,7 @@ pub fn send(
         addr_prefix,
     );
     counter.tick(100);
-    let hash = publish_block(signed_block, String::from("send"), node_url);
-    eprintln!("{}", hash);
+    publish_block(signed_block, String::from("send"), node_url);
     counter.tick(400);
 }
 pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {

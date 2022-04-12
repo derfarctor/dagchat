@@ -166,7 +166,7 @@ fn show_send(s: &mut Cursive, with_message: bool) {
             Dialog::around(TextView::new(no_balance_message))
                 .h_align(HAlign::Center)
                 .button("Back", |s| show_inbox(s))
-                .button("Copy Address", move |s| { copy_to_clip(s, address.clone()) })
+                .button("Copy Address", move |s| copy_to_clip(s, address.clone()))
                 .max_width(75),
         );
         return;
@@ -344,7 +344,6 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
             .with_task(move |counter| {
                 let with_message = !message.is_empty();
                 if !with_message {
-                    eprintln!("Not with message");
                     send(
                         &private_key_bytes,
                         address,
@@ -354,7 +353,6 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
                         &counter,
                     );
                 } else {
-                    eprintln!("With message");
                     send_message(
                         &private_key_bytes,
                         address,
@@ -729,7 +727,7 @@ fn show_message_info(s: &mut Cursive, _name: &str) {
                     .button(receive_label, move |s| {
                         process_receive(s, focus);
                     })
-                    .button("Copy address", move |s| { copy_to_clip(s, sender.clone())})
+                    .button("Copy address", move |s| copy_to_clip(s, sender.clone()))
                     .button("Back", |s| go_back(s))
                     .title(title),
             );
