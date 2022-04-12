@@ -767,15 +767,15 @@ fn get_seed(s: &mut Cursive) {
             )
             .h_align(HAlign::Center)
             .button("Done", |s| {
-                let mut seed = s
+                let raw_seed = s
                     .call_on_name("seed", |view: &mut EditView| view.get_content())
                     .unwrap();
-                seed = std::rc::Rc::new(seed.trim().to_string());
+                let seed = raw_seed.trim();
                 if seed.len() != 64 {
                     s.add_layer(Dialog::info("Seed was invalid: not 64 characters long."));
                     return;
                 }
-                let bytes_opt = hex::decode(&*seed);
+                let bytes_opt = hex::decode(seed);
                 if bytes_opt.is_err() {
                     s.add_layer(Dialog::info("Seed was invalid: failed to decode hex."));
                     return;
