@@ -767,9 +767,10 @@ fn get_seed(s: &mut Cursive) {
             )
             .h_align(HAlign::Center)
             .button("Done", |s| {
-                let seed = s
+                let mut seed = s
                     .call_on_name("seed", |view: &mut EditView| view.get_content())
                     .unwrap();
+                seed = std::rc::Rc::new(seed.trim().to_string());
                 if seed.len() != 64 {
                     s.add_layer(Dialog::info("Seed was invalid: not 64 characters long."));
                     return;
