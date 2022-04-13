@@ -24,8 +24,6 @@ const ADDR_ENCODING: Encoding = new_encoding! {
     check_trailing_bits: false,
 };
 
-const MULTI: &str = "100000000000000000000000000000";
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AccountInfoResponse {
     frontier: String,
@@ -58,7 +56,6 @@ struct ReceivableRequest {
     action: String,
     account: String,
     source: bool,
-    sorting: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -89,21 +86,10 @@ pub struct Receivable {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
-    pub head: Option<BlockResponse>,
+    pub head: BlockResponse,
     pub root_hash: String,
     pub blocks: u64,
     pub plaintext: String,
-}
-
-impl Default for Message {
-    fn default() -> Message {
-        Message {
-            head: None,
-            root_hash: String::from(""),
-            blocks: 0,
-            plaintext: String::from(""),
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -121,10 +107,11 @@ struct ProcessResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct BlockRequest {
+struct BlocksRequest {
     action: String,
     json_block: bool,
-    hash: String,
+    hashes: Vec<String>,
+    include_not_found: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -138,6 +125,18 @@ pub struct BlockResponse {
     confirmed: String,
     pub contents: Block,
     subtype: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BlocksResponse {
+    #[serde(flatten)]
+    data: HashMap<String, BlockResponse>,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BlocksInfoResponse {
+    blocks: BlocksResponse,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -387,28 +386,6 @@ pub fn send(
     publish_block(signed_block, String::from("send"), node_url);
     counter.tick(400);
 }
-pub fn has_message(head_hash: &str, node_url: &str) -> Option<Message> {
-    // Assured to exist before being passed to function
-    let head_block = get_block_info(head_hash, node_url).unwrap();
-    let representative_bytes = to_public_key(&head_block.contents.representative);
-    let root_hash = hex::encode(representative_bytes);
-    let root_opt = get_block_info(&root_hash, node_url);
-    // Check if block exists. If it does, then it points toward a message root
-    if let Some(root_block) = root_opt {
-        let head_height: u64 = head_block.height.parse().unwrap();
-        let root_height: u64 = root_block.height.parse().unwrap();
-        let message_block_count = head_height - root_height;
-        let message = Message {
-            blocks: message_block_count,
-            head: Some(head_block),
-            root_hash: root_hash,
-            plaintext: String::from(""),
-        };
-        return Some(message);
-    } else {
-        return None;
-    }
-}
 
 pub fn read_message(
     private_key_bytes: &[u8; 32],
@@ -434,53 +411,86 @@ pub fn read_message(
     plaintext
 }
 
-pub fn find_incoming(target_address: &str, node_url: &str) -> Vec<Receivable> {
+pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) -> Vec<Receivable> {
     let request = ReceivableRequest {
         action: String::from("pending"),
         account: String::from(target_address),
         source: true,
-        /* Maybe there's an efficient way to use this working backwards. Not implemented yet. */
-        sorting: true,
     };
 
     let body = serde_json::to_string(&request).unwrap();
     let response = post_node(body, node_url);
+    counter.tick(200);
 
     // Response from node if there are no receivable blocks
-    //println!("{}", response);
     if response.contains("\"blocks\": \"\"") {
         return vec![];
     }
-    let receivable: ReceivableResponse = serde_json::from_str(&response).unwrap();
 
-    let blocks = receivable.blocks.data;
+    let receivables: ReceivableResponse = serde_json::from_str(&response).unwrap();
+    let receivable_blocks = receivables.blocks.data;
+    let mut head_hashes: Vec<String> = vec![];
+    for block in &receivable_blocks {
+        head_hashes.push(block.0.clone());
+    }
+    counter.tick(50);
+
+    let head_blocks_info = get_blocks_info(head_hashes, node_url);
+    counter.tick(200);
+    let mut raw_head_blocks = head_blocks_info.blocks.data;
+    let mut root_hashes: Vec<String> = vec![];
+
+    for block in &raw_head_blocks {
+        let rep = &block.1.contents.representative;
+        let bytes = to_public_key(rep);
+        let hash = hex::encode(bytes);
+        root_hashes.push(hash);
+    }
+    counter.tick(50);
+    let root_blocks_info = get_blocks_info(root_hashes, node_url);
+    counter.tick(200);
+    let raw_root_blocks = root_blocks_info.blocks.data;
+
     let mut incoming: Vec<Receivable> = vec![];
-    for block in blocks {
-        //println!("{} info: {:?}", block.0, block.1);
+    let x = 200usize / receivable_blocks.len();
+    for receivable in receivable_blocks {
+        let head_block = raw_head_blocks.remove(&receivable.0).unwrap();
+        let hash = hex::encode(to_public_key(&head_block.contents.representative));
+        let mut message: Option<Message> = None;
+        if raw_root_blocks.contains_key(&hash) {
+            let root_block = raw_root_blocks.get(&hash).unwrap();
+            let head_height: u64 = head_block.height.parse().unwrap();
+            let root_height: u64 = root_block.height.parse().unwrap();
+            let message_block_count = head_height - root_height;
+            message = Some(Message {
+                blocks: message_block_count,
+                head: head_block,
+                root_hash: hash,
+                plaintext: String::from(""),
+            });
+        }
         incoming.push(Receivable {
-            hash: block.0,
-            amount: block.1.amount.parse().unwrap(),
-            source: block.1.source,
-            message: Default::default(),
+            hash: receivable.0,
+            amount: receivable.1.amount.parse().unwrap(),
+            source: receivable.1.source,
+            message: message,
         });
+        counter.tick(x);
     }
     incoming
 }
 
-pub fn get_block_info(hash: &str, node_url: &str) -> Option<BlockResponse> {
-    let request = BlockRequest {
-        action: String::from("block_info"),
+pub fn get_blocks_info(hashes: Vec<String>, node_url: &str) -> BlocksInfoResponse {
+    let request = BlocksRequest {
+        action: String::from("blocks_info"),
         json_block: true,
-        hash: String::from(hash),
+        hashes: hashes,
+        include_not_found: true,
     };
     let body = serde_json::to_string(&request).unwrap();
     let response = post_node(body, node_url);
-    //println!("{}", response);
-    if response.contains("Block not found") {
-        return None;
-    }
-    let block_response: BlockResponse = serde_json::from_str(&response).unwrap();
-    Some(block_response)
+    let blocks_info_response: BlocksInfoResponse = serde_json::from_str(&response).unwrap();
+    blocks_info_response
 }
 
 pub fn get_account_info(address: &str, node_url: &str) -> Option<AccountInfoResponse> {
@@ -593,13 +603,9 @@ pub fn get_block_hash(
     hasher.update(rep);
 
     let mut x = format!("{:x}", &balance);
-    //println!("Non padded: {}", x);
     while x.len() < 32 {
         x = format!("0{}", x);
     }
-    //println!("{}", x);
-    //println!("{}", x.len());
-    //println!("{:?}", hex::decode(&x).unwrap());
     hasher.update(&hex::decode(x).unwrap());
     hasher.update(link);
     hasher.finalize_variable(&mut buf).unwrap();
@@ -621,11 +627,7 @@ pub fn get_signed_block(
 
     let internal_signed =
         expanded_secret.sign(block_hash, &ed25519_dalek::PublicKey::from(&secret));
-
-    //println!("{:?}", internal_signed);
-    let y = internal_signed.to_bytes();
-    let z = hex::encode(&y);
-    //println!("{}", z);
+    let signed_bytes = internal_signed.to_bytes();
 
     //let work = generate_work(&previous, "banano");
     let block = Block {
@@ -635,7 +637,7 @@ pub fn get_signed_block(
         representative: get_address(rep, addr_prefix),
         balance: balance.to_string(),
         link: hex::encode(link),
-        signature: z,
+        signature: hex::encode(&signed_bytes),
     };
 
     block
@@ -775,12 +777,12 @@ pub fn get_num_equivalent(mnemonic: &str) -> ([u16; 24], bool) {
 }
 
 // Also validates if the amount submitted was possible
-pub fn whole_to_raw(whole: String) -> Option<u128> {
+pub fn whole_to_raw(whole: String, multiplier: &str) -> Option<u128> {
     let amount = BigDecimal::from_str(&whole.trim());
     if amount.is_err() {
         return None;
     }
-    let multi = BigDecimal::from_str(MULTI).unwrap();
+    let multi = BigDecimal::from_str(multiplier).unwrap();
     let amount_raw = amount.unwrap() * multi;
     if amount_raw.is_integer() {
         let raw_string = amount_raw.with_scale(0).to_string();
@@ -795,13 +797,13 @@ pub fn whole_to_raw(whole: String) -> Option<u128> {
     }
 }
 
-pub fn display_to_dp(raw: u128, dp: usize, ticker: &str) -> String {
-    if raw < 100000 {
-        return format!("{} raw", raw);
+pub fn display_to_dp(raw: u128, dp: usize, multiplier: &str, ticker: &str) -> String {
+    if raw < 1000000 {
+        return format!("{} RAW", raw);
     } else {
         let raw_string = raw.to_string();
         let raw = BigDecimal::from_str(&raw_string).unwrap();
-        let multi = BigDecimal::from_str(MULTI).unwrap();
+        let multi = BigDecimal::from_str(multiplier).unwrap();
         let adjusted = raw / multi;
         let mut s = adjusted.to_string();
 
