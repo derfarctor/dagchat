@@ -11,6 +11,7 @@ use cursive::Cursive;
 use rand::RngCore;
 
 pub mod defaults;
+use defaults::SHOW_TO_DP;
 
 // Dagchat util
 mod dcutil;
@@ -21,6 +22,7 @@ pub struct Data {
     pub prefix: String,
     pub coin: String,
     pub ticker: String,
+    pub multiplier: String,
     pub node_url: String,
     pub colour: Color,
 }
@@ -51,9 +53,10 @@ impl Data {
     pub fn new() -> Self {
         Data {
             account: Default::default(),
-            coin: String::from("nano"),
             prefix: String::from("nano_"),
+            coin: String::from("nano"),
             ticker: String::from("Ӿ"),
+            multiplier: String::from("1000000000000000000000000000000"),
             node_url: String::from("https://app.natrium.io/api"),
             colour: L_BLUE,
         }
@@ -105,9 +108,11 @@ fn main() {
         set_theme(s, &*coin, *vibrant);
         if *coin == "banano" {
             s.with_user_data(|data: &mut Data| {
-                data.coin = String::from("banano");
                 data.prefix = String::from("ban_");
+                data.coin = String::from("banano");
                 data.ticker = String::from(" BAN");
+                // Down to 10^29 from 10^30
+                data.multiplier.pop();
                 data.node_url = String::from("https://kaliumapi.appditto.com/api");
                 data.colour = YELLOW;
             });
@@ -151,8 +156,10 @@ fn show_send(s: &mut Cursive, with_message: bool) {
 
     let data = &s.user_data::<Data>().unwrap();
     let balance = data.account.balance;
-    let ticker = data.ticker.clone();
     let coin = data.coin.clone();
+    let ticker = data.ticker.clone();
+    let multiplier = data.multiplier.clone();
+    
 
     if balance == 0 {
         let address = data.account.address.clone();
@@ -267,7 +274,7 @@ fn show_send(s: &mut Cursive, with_message: bool) {
                     raw = 1;
                 }
                 if !amount.is_empty() {
-                    let raw_opt = whole_to_raw(amount);
+                    let raw_opt = whole_to_raw(amount, &multiplier);
                     if raw_opt.is_none() {
                         let content;
                         if with_message {
@@ -406,7 +413,7 @@ fn process_receive(s: &mut Cursive, idx: usize) {
                     let data = &mut s.user_data::<Data>().unwrap();
                     data.account.receivables.remove(idx);
                     data.account.balance += amount;
-                    let bal = display_to_dp(data.account.balance, 5, &data.ticker);
+                    let bal = display_to_dp(data.account.balance, SHOW_TO_DP, &data.multiplier, &data.ticker);
                     let bal_text = format!("Balance: {}", bal);
                     balance.set_content(StyledString::styled(bal_text, data.colour));
                     s.pop_layer();
@@ -425,7 +432,7 @@ fn alpha_info(s: &mut Cursive) {
     info.append(StyledString::styled("This is the inbox. Messages sent to you with 1 raw have already been identified as messages, but messages sent with an arbitrary amount will not yet have been detected. Select 'Find messages' from the buttons on the right to scan your list of receivables and identify these.", OFF_WHITE));
     s.add_layer(
         Dialog::around(TextView::new(info))
-            .button("Go to inbox", |s| load_receivables(s, true))
+            .button("Go to inbox", |s| load_receivables(s))
             .max_width(60),
     );
 }
@@ -442,7 +449,7 @@ fn show_sent(s: &mut Cursive, with_message: bool) {
     s.add_layer(Dialog::text(content).button("Back", |s| show_inbox(s)));
 }
 
-fn load_receivables(s: &mut Cursive, initial: bool) {
+fn load_receivables(s: &mut Cursive) {
     let ticks = 1000;
 
     let cb = s.cb_sink().clone();
@@ -460,45 +467,11 @@ fn load_receivables(s: &mut Cursive, initial: bool) {
                 if account_info.is_some() {
                     balance = get_balance(&account_info.unwrap());
                 }
-                counter.tick(50);
-                let mut receivables = find_incoming(&target_address, &node_url);
-                counter.tick(150);
-                if !receivables.is_empty() {
-                    let x = 800usize / receivables.len();
-                    for receivable in &mut receivables {
-                        if initial {
-                            if receivable.amount == 1 {
-                                receivable.message = has_message(&receivable.hash, &node_url);
-                            }
-                        } else {
-                            if receivable.amount != 1 {
-                                receivable.message = has_message(&receivable.hash, &node_url);
-                            }
-                        }
-                        counter.tick(x);
-                    }
-                }
+                counter.tick(100);
+                let receivables = find_incoming(&target_address, &node_url, &counter);
                 cb.send(Box::new(move |s| {
                     let data = &mut s.user_data::<Data>().unwrap();
-                    if !initial {
-                        for rx in receivables {
-                            let existing_idx = data
-                                .account
-                                .receivables
-                                .iter()
-                                .position(|r| &r.hash == &rx.hash);
-                            if rx.message.is_none() {
-                                continue;
-                            };
-                            if existing_idx.is_none() {
-                                data.account.receivables.push(rx);
-                            } else {
-                                data.account.receivables[existing_idx.unwrap()] = rx;
-                            }
-                        }
-                    } else {
-                        data.account.receivables = receivables;
-                    }
+                    data.account.receivables = receivables;
                     data.account.balance = balance;
                     show_inbox(s);
                 }))
@@ -603,12 +576,11 @@ fn show_inbox(s: &mut Cursive) {
     let address = data.account.address.clone();
     let send_label = format!("Send {}", data.coin);
     let buttons = LinearLayout::vertical()
-        .child(Button::new("Refresh", |s| load_receivables(s, true)))
+        .child(Button::new("Refresh", |s| load_receivables(s)))
         .child(DummyView)
         .child(Button::new(send_label, |s| show_send(s, false)))
         .child(Button::new("Send message", |s| show_send(s, true)))
         .child(DummyView)
-        .child(Button::new("Find messages", |s| load_receivables(s, false)))
         .child(Button::new("Copy address", move |s| {
             copy_to_clip(s, address.clone())
         }))
@@ -622,7 +594,7 @@ fn show_inbox(s: &mut Cursive) {
         .scrollable()
         .max_height(6);
 
-    let bal = display_to_dp(data.account.balance, 5, &data.ticker);
+    let bal = display_to_dp(data.account.balance, SHOW_TO_DP, &data.multiplier, &data.ticker);
     let bal_text = format!("Balance: {}", bal);
     let bal_content =
         TextView::new(StyledString::styled(bal_text, data.colour)).with_name("balance");
@@ -652,7 +624,7 @@ fn show_inbox(s: &mut Cursive) {
         if receivable.amount == 1 && receivable.message.is_some() {
             tag = String::from("Message");
         } else {
-            tag = display_to_dp(receivable.amount, 5, &data.ticker);
+            tag = display_to_dp(receivable.amount, SHOW_TO_DP, &data.multiplier, &data.ticker);
             if receivable.message.is_some() {
                 tag = format!("{} + Msg", tag);
             }
@@ -688,7 +660,7 @@ fn show_message_info(s: &mut Cursive, _name: &str) {
                     // Potential feature: Confirm option with message length in chars (estimated)
                     // removes ability for attacks such as extremely long messages although probably
                     // not an issue. Harder to send a long message than read.
-                    let target = &message.head.as_mut().unwrap().contents.account;
+                    let target = &message.head.contents.account;
                     let root_hash = &message.root_hash;
                     let blocks = message.blocks;
                     // Potential feature: Add loading screen + process_message()
@@ -710,7 +682,7 @@ fn show_message_info(s: &mut Cursive, _name: &str) {
             let colour = data.colour;
             if !(receivable.amount == 1 && receivable.message.is_some()) {
                 receive_label = format!("Receive{}", receive_label);
-                let amount = display_to_dp(receivable.amount, 5, &data.ticker);
+                let amount = display_to_dp(receivable.amount, SHOW_TO_DP, &data.multiplier, &data.ticker);
                 content.add_child(TextView::new(StyledString::styled("Amount", colour)));
                 content.add_child(TextView::new(StyledString::styled(amount, OFF_WHITE)));
                 content.add_child(DummyView);
