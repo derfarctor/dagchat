@@ -133,7 +133,6 @@ pub struct BlocksResponse {
     data: HashMap<String, BlockResponse>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BlocksInfoResponse {
     blocks: BlocksResponse,
@@ -174,13 +173,12 @@ pub fn send_message(
     }
     let public_key = ecies_ed25519::PublicKey::from_bytes(&public_key_bytes).unwrap();
     counter.tick(50);
-    //println!("Encrypting message for send: {}", message);
+
     let mut csprng = rand::thread_rng();
     let encrypted_bytes =
         ecies_ed25519::encrypt(&public_key, message.as_bytes(), &mut csprng).unwrap();
     let blocks_needed = ((60 + message.len()) / 32) + 1;
     counter.tick(50);
-    //println!("Blocks needed: {}", blocks_needed);
 
     let mut block_data = [0u8; 32];
     let mut first_block_hash = [0u8; 32];
@@ -217,7 +215,6 @@ pub fn send_message(
         } else {
             block_data.copy_from_slice(&encrypted_bytes[start..end]);
         }
-        //println!("Block data as addr: {:?}", get_address(&block_data, addr_prefix));
         let block_hash = get_block_hash(
             private_key_bytes,
             &block_data,
