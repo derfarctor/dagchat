@@ -34,8 +34,10 @@ pub struct UserData {
     pub accounts: Vec<accounts::Account>,
     pub acc_idx: usize,
     pub coin: Coin,
+    pub encrypted_accounts: Vec<u8>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Coin {
     prefix: String,
     name: String,
@@ -75,6 +77,7 @@ impl UserData {
             accounts: vec![],
             acc_idx: 0,
             coin: Coin::nano(),
+            encrypted_accounts: vec![],
         }
     }
 }
@@ -99,8 +102,14 @@ fn main() {
     siv.set_window_title(format!("dagchat {}", VERSION));
     let data = UserData::new();
     siv.set_user_data(data);
-    set_theme(&mut siv, "nano", false);
 
+    show_title(&mut siv);
+
+    siv.try_run_with(backend_init).ok().unwrap();
+}
+
+fn show_title(s: &mut Cursive) {
+    set_theme(s, "nano", false);
     let mut theme_group: RadioGroup<bool> = RadioGroup::new();
 
     let mut coin_group: RadioGroup<String> = RadioGroup::new();
@@ -108,8 +117,8 @@ fn main() {
     let radios = LinearLayout::horizontal()
         .child(
             LinearLayout::vertical()
-                .child(coin_group.button("nano".to_string(), "nano").selected())
-                .child(coin_group.button("banano".to_string(), "banano")),
+                .child(coin_group.button(String::from("nano"), "nano").selected())
+                .child(coin_group.button(String::from("banano"), "banano")),
         )
         .child(DummyView)
         .child(
@@ -130,7 +139,7 @@ fn main() {
         accounts::check_setup(s);
     });
 
-    siv.add_layer(
+    s.add_layer(
         Dialog::new()
             .content(
                 LinearLayout::vertical()
@@ -142,7 +151,6 @@ fn main() {
             .title(format!("dagchat {}", VERSION))
             .h_align(HAlign::Center),
     );
-    siv.try_run_with(backend_init).ok().unwrap();
 }
 
 // Functions below are used across main.rs, send.rs,
@@ -163,9 +171,11 @@ fn get_subtitle_colour(s: &mut Cursive) -> Color {
     sub_title_colour
 }
 
+/*
 fn alpha_info(s: &mut Cursive) {
     s.pop_layer();
-    let mut info = StyledString::plain("Information for alpha testers:\n");
+    let data = &s.user_data::<UserData>().unwrap();
+    let mut info = StyledString::styled("Information for alpha testers:\n", data.coin.colour);
     info.append(StyledString::styled("This is the inbox. Messages sent to you with 1 raw have already been identified as messages, but messages sent with an arbitrary amount will not yet have been detected. Select 'Find messages' from the buttons on the right to scan your list of receivables and identify these.", OFF_WHITE));
     s.add_layer(
         Dialog::around(TextView::new(info))
@@ -173,15 +183,14 @@ fn alpha_info(s: &mut Cursive) {
             .max_width(60),
     );
 }
+*/
 
 fn show_change_rep(s: &mut Cursive) {
     s.pop_layer();
-    let data = &mut s.user_data::<UserData>().unwrap();
+    let data = &s.user_data::<UserData>().unwrap();
     let private_key = data.accounts[data.acc_idx].private_key;
-    let prefix = data.coin.prefix.clone();
-    let node_url = data.coin.node_url.clone();
+    let coin = data.coin.clone();
     let address = data.accounts[data.acc_idx].address.clone();
-    let coin = data.coin.name.clone();
     let sub_title_colour = get_subtitle_colour(s);
     s.add_layer(
         Dialog::around(
@@ -217,7 +226,7 @@ fn show_change_rep(s: &mut Cursive) {
                     });
                     if rep_address.is_empty() {
                         s.add_layer(Dialog::info(
-                            "You must provide an address to change representative to!",
+                            "You must provide an address to change representative to!"
                         ));
                         return;
                     }
@@ -226,13 +235,13 @@ fn show_change_rep(s: &mut Cursive) {
                         s.add_layer(Dialog::info("The representative's address is invalid."));
                         return;
                     }
-                    let account_info_opt = get_account_info(&address, &node_url);
+                    let account_info_opt = get_account_info(&address, &coin.node_url);
                     if account_info_opt.is_none() {
-                        s.add_layer(Dialog::info(format!("You can't change representatives until you open your account by receiving some {}.", coin)));
+                        s.add_layer(Dialog::info(format!("You can't change representatives until you open your account by receiving some {}.", coin.name)));
                         return;
                     }
                     let account_info = account_info_opt.unwrap();
-                    change_rep(&private_key, account_info, &rep_address, &node_url, &prefix);
+                    change_rep(&private_key, account_info, &rep_address, &coin.node_url, &coin.prefix);
                     s.pop_layer();
                     show_inbox(s);
                     s.add_layer(Dialog::info("Successfully changed representative!"));
@@ -245,13 +254,18 @@ fn show_change_rep(s: &mut Cursive) {
 
 fn copy_to_clip(s: &mut Cursive, string: String) {
     let mut clipboard = Clipboard::new().unwrap();
+    let data = &s.user_data::<UserData>().unwrap();
     let copied = clipboard.set_text(string.clone());
     if copied.is_err() {
-        s.add_layer(Dialog::info("Error copying to clipboard."));
+        s.add_layer(Dialog::info(StyledString::styled(
+            "Error copying to clipboard.",
+            Color::Light(BaseColor::Red),
+        )));
     } else {
         let mut content = StyledString::styled(format!("{}\n", string), OFF_WHITE);
-        content.append(StyledString::plain(
+        content.append(StyledString::styled(
             "was successfully copied to your clipboard.",
+            data.coin.colour,
         ));
         s.add_layer(
             Dialog::around(TextView::new(content))
@@ -278,7 +292,7 @@ fn show_inbox(s: &mut Cursive) {
         }))
         .child(Button::new("Change rep", |s| show_change_rep(s)))
         .child(DummyView)
-        .child(Button::new("Accounts", |s| accounts::show_accounts(s)));
+        .child(Button::new("Back", |s| accounts::show_accounts(s)));
 
     let select = SelectView::<String>::new()
         .on_submit(receive::show_message_info)

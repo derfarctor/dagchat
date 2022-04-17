@@ -13,7 +13,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         let address = data.accounts[data.acc_idx].address.clone();
         let no_balance_message;
         if with_message {
-            no_balance_message = format!("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. One faucet claim will last you a lifetime. Your address is: {}", address);
+            no_balance_message = String::from("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. One faucet claim will last you a lifetime.");
         } else {
             no_balance_message = format!("You don't have any {} in your wallet to send.", coin);
         }

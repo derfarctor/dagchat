@@ -673,11 +673,11 @@ pub fn validate_mnemonic(mnemonic: &str) -> Option<[u8; 32]> {
     Some(entropy)
 }
 
-pub fn get_private_key(seed_bytes: &[u8; 32]) -> [u8; 32] {
+pub fn get_private_key(seed_bytes: &[u8; 32], idx: u32) -> [u8; 32] {
     let mut hasher = Blake2bVar::new(32).unwrap();
     let mut buf = [0u8; 32];
     hasher.update(seed_bytes);
-    hasher.update(&[0u8; 4]);
+    hasher.update(&idx.to_be_bytes());
     hasher.finalize_variable(&mut buf).unwrap();
     buf
 }
