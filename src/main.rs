@@ -90,6 +90,7 @@ const D_BLUE: Color = Color::Rgb(12, 37, 125);
 
 const YELLOW: Color = Color::Light(BaseColor::Yellow);
 const OFF_WHITE: Color = Color::Rgb(245, 245, 247);
+const RED: Color = Color::Light(BaseColor::Red);
 
 fn main() {
     let backend_init = || -> std::io::Result<Box<dyn cursive::backend::Backend>> {
