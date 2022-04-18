@@ -1,4 +1,5 @@
 use bigdecimal::BigDecimal;
+use bitreader::BitReader;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use data_encoding::Encoding;
@@ -744,6 +745,24 @@ pub fn validate_address(addr: &str) -> bool {
     } else {
         return false;
     }
+}
+
+pub fn seed_to_mnemonic(seed_bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    Digest::update(&mut hasher, seed_bytes);
+    let check = hasher.finalize();
+
+    let mut combined = Vec::from(seed_bytes);
+    combined.extend(&check);
+
+    let mut reader = BitReader::new(&combined);
+
+    let mut words: Vec<&str> = Vec::new();
+    for _ in 0..24 {
+        let n = reader.read_u16(11);
+        words.push(WORD_LIST[n.unwrap() as usize].as_ref());
+    }
+    words.join(" ")
 }
 
 fn compute_address_checksum(pub_key_bytes: &[u8]) -> [u8; 5] {

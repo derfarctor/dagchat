@@ -152,7 +152,7 @@ fn load_with_password(s: &mut Cursive, password: &str) {
         return;
     }
     data.password = password.to_string();
-    
+
     let accounts_res = bincode::deserialize(&bytes.unwrap()[..]);
     if accounts_res.is_err() {
         show_accounts(s);
@@ -268,11 +268,15 @@ pub fn show_accounts(s: &mut Cursive) {
         Dialog::around(
             LinearLayout::vertical().child(DummyView).child(
                 LinearLayout::horizontal()
-                    .child(Dialog::around(select).padding_lrtb(1, 1, 0, 0).title("Accounts"))
+                    .child(
+                        Dialog::around(select)
+                            .padding_lrtb(1, 1, 0, 0)
+                            .title("Accounts"),
+                    )
                     .child(DummyView)
                     .child(DummyView)
                     .child(buttons),
-            )
+            ),
         )
         .title("Select an Account"),
     );
@@ -315,73 +319,166 @@ fn select_account(s: &mut Cursive, _: &str) {
             let mut extra = format!(" (at index {})", account.key_idx);
 
             let mut outer = Dialog::new()
-            .h_align(HAlign::Center)
-            .button("Begin", |s| {     s.pop_layer();
-                receive::load_receivables(s)})
-            .button("Back", |s| {
-                s.pop_layer();
-                s.pop_layer();
-                show_accounts(s)});
+                .h_align(HAlign::Center)
+                .button("Load", |s| {
+                    s.pop_layer();
+                    receive::load_receivables(s)
+                })
+                .button("Back", |s| {
+                    s.pop_layer();
+                    s.pop_layer();
+                    show_accounts(s)
+                });
             if account.mnemonic.is_some() {
-                let mnemonic = account.mnemonic.as_ref().unwrap().clone();
-                origin = "loaded from mnemonic phrase";
+                origin = "mnemonic";
                 add_idx_button(&mut outer);
-                outer.add_button("Copy mnemonic",move |s| {
-                    copy_to_clip(s, mnemonic.clone());
-                });
             } else if account.seed.is_some() {
-                origin = "loaded from seed";
-                let seed = hex::encode(account.seed.unwrap());
+                origin = "seed";
                 add_idx_button(&mut outer);
-                outer.add_button("Copy seed", move |s| {
-                    copy_to_clip(s, seed.clone());
-                });
             } else {
-                origin = "loaded from private key";
-                let key = hex::encode(account.private_key);
-                outer.add_button("Copy private key", move |s| {
-                    copy_to_clip(s, key.clone());
-                });
+                origin = "private key";
                 extra = String::from("");
             }
+            outer.add_button("Backup", move |s| backup_account(s, origin));
             outer.add_button("Remove", move |s| remove_account(s, focus));
             let content = LinearLayout::vertical()
-            .child(DummyView)
-            .child(TextView::new(StyledString::styled(format!("Account address{}",extra), OFF_WHITE)))
-            .child(TextView::new(StyledString::styled(&account.address, data.coin.colour)))
-            .child(DummyView)
-            .child(TextView::new(StyledString::styled("Account type", OFF_WHITE)))
-            .child(TextView::new(StyledString::styled(origin, data.coin.colour)));
-            s.add_layer(outer.content(content)
-            .title(format!("Account {}", focus+1)));
+                .child(DummyView)
+                .child(TextView::new(StyledString::styled(
+                    format!("Account address{}", extra),
+                    OFF_WHITE,
+                )))
+                .child(TextView::new(StyledString::styled(
+                    &account.address,
+                    data.coin.colour,
+                )))
+                .child(DummyView)
+                .child(TextView::new(StyledString::styled(
+                    "Account type",
+                    OFF_WHITE,
+                )))
+                .child(TextView::new(StyledString::styled(
+                    format!("loaded from {}", origin),
+                    data.coin.colour,
+                )));
+            s.add_layer(
+                outer
+                    .content(content)
+                    .title(format!("Account {}", focus + 1)),
+            );
         }
     }
 }
 
+fn backup_account(s: &mut Cursive, origin: &str) {
+    let data = &mut s.user_data::<UserData>().unwrap();
+    let account = &data.accounts[data.acc_idx];
+    let mut content = Dialog::around(LinearLayout::vertical().child(DummyView).child(
+        TextView::new(StyledString::styled(
+            "Make sure you are in a safe location before viewing your mnemonic, seed or key.",
+            Color::Light(BaseColor::Red),
+        )),
+    ))
+    .h_align(HAlign::Center)
+    .title("Backup account");
+
+    if origin == "mnemonic" {
+        let mnemonic = account.mnemonic.as_ref().unwrap().clone();
+        content.add_button("Mnemonic", move |s| {
+            let mnemonic = mnemonic.clone();
+            s.add_layer(
+                Dialog::around(
+                    LinearLayout::vertical()
+                        .child(DummyView)
+                        .child(TextView::new(&mnemonic)),
+                )
+                .h_align(HAlign::Center)
+                .button("Copy", move |s| {
+                    s.pop_layer();
+                    s.pop_layer();
+                    copy_to_clip(s, mnemonic.clone())
+                })
+                .button("Back", |s| go_back(s))
+                .title("Mnemonic")
+                .max_width(80),
+            );
+        });
+    }
+    if origin == "mnemonic" || origin == "seed" {
+        let seed = hex::encode(account.seed.unwrap());
+        content.add_button("Hex seed", move |s| {
+            let seed = seed.clone();
+            s.add_layer(
+                Dialog::around(
+                    LinearLayout::vertical()
+                        .child(DummyView)
+                        .child(TextView::new(&seed)),
+                )
+                .h_align(HAlign::Center)
+                .button("Copy", move |s| {
+                    s.pop_layer();
+                    s.pop_layer();
+                    copy_to_clip(s, seed.clone())
+                })
+                .button("Back", |s| go_back(s))
+                .title("Seed"),
+            );
+        });
+    } else {
+        let private_key = hex::encode(account.private_key);
+        content.add_button("Private key", move |s| {
+            let private_key = private_key.clone();
+            s.add_layer(
+                Dialog::around(
+                    LinearLayout::vertical()
+                        .child(DummyView)
+                        .child(TextView::new(&private_key)),
+                )
+                .h_align(HAlign::Center)
+                .button("Copy", move |s| {
+                    s.pop_layer();
+                    s.pop_layer();
+                    copy_to_clip(s, private_key.clone())
+                })
+                .button("Back", |s| go_back(s))
+                .title("Private key"),
+            );
+        });
+    }
+    content.add_button("Back", |s| go_back(s));
+
+    s.add_layer(content.max_width(80));
+}
+
 fn add_idx_button(dialog: &mut Dialog) {
     dialog.add_button("Index", move |s| {
-        s.add_layer(Dialog::around(LinearLayout::vertical()
-    .child(DummyView)
-    .child(TextView::new("Account index (0 - 4,294,967,295)"))
-    .child(EditView::new().on_submit(process_idx).with_name("index")))
-    .h_align(HAlign::Center)
-    .button("Submit", move |s| {
-        let idx = s
-        .call_on_name("index", |view: &mut EditView| view.get_content())
-        .unwrap();
-    process_idx(s, &idx);
-        })
-    .button("Back", |s| {
-        s.pop_layer();
-    })
-    .title("Change account index"))
+        s.add_layer(
+            Dialog::around(
+                LinearLayout::vertical()
+                    .child(DummyView)
+                    .child(TextView::new("Account index (0 - 4,294,967,295)"))
+                    .child(EditView::new().on_submit(process_idx).with_name("index")),
+            )
+            .h_align(HAlign::Center)
+            .button("Submit", move |s| {
+                let idx = s
+                    .call_on_name("index", |view: &mut EditView| view.get_content())
+                    .unwrap();
+                process_idx(s, &idx);
+            })
+            .button("Back", |s| {
+                s.pop_layer();
+            })
+            .title("Change account index"),
+        )
     });
 }
 
 fn process_idx(s: &mut Cursive, idx: &str) {
     let index_res: Result<u32, _> = idx.parse();
     if index_res.is_err() {
-        s.add_layer(Dialog::info("Error: index was not an integer within the valid range."));
+        s.add_layer(Dialog::info(
+            "Error: index was not an integer within the valid range.",
+        ));
         return;
     } else {
         let index: u32 = index_res.unwrap();
@@ -407,7 +504,7 @@ fn remove_account(s: &mut Cursive, idx: usize) {
     .h_align(HAlign::Center)
     .button("Back", |s| {
         s.pop_layer();
-    })    
+    })
     .button("Confirm", move |s| {
             let data = &mut s.user_data::<UserData>().unwrap();
             data.accounts.remove(idx);
@@ -423,7 +520,6 @@ fn remove_account(s: &mut Cursive, idx: usize) {
         .title("Confirm account deletion")
     );
 }
-    
 
 fn add_account(s: &mut Cursive) {
     s.pop_layer();
@@ -436,7 +532,6 @@ fn add_account(s: &mut Cursive) {
         .child(DummyView)
         .child(TextView::new(StyledString::styled(content, colour)))
         .child(DummyView)
-
         .child(Button::new("Mnemonic", |s| show_from_mnemonic(s)))
         .child(Button::new("Hex Seed", |s| {
             from_seedorkey(s, String::from("seed"))
@@ -581,8 +676,12 @@ fn new_account(s: &mut Cursive) {
     let mut csprng = rand::thread_rng();
     let mut seed_bytes = [0u8; 32];
     csprng.fill_bytes(&mut seed_bytes);
-    let account = Account::from_seed(Some(seed_bytes), &data.coin.prefix);
-    setup_account(s, account, move |s| new_success(s, hex::encode(seed_bytes)));
+    let mnemonic = seed_to_mnemonic(&seed_bytes);
+    let account =
+        Account::from_mnemonic(Some(mnemonic.clone()), Some(seed_bytes), &data.coin.prefix);
+    setup_account(s, account, move |s| {
+        new_success(s, mnemonic.clone(), hex::encode(seed_bytes))
+    });
 }
 
 fn setup_account<F: 'static>(s: &mut Cursive, account: Account, on_success: F)
@@ -594,7 +693,7 @@ where
 
     let data = &mut s.user_data::<UserData>().unwrap();
     data.accounts.push(account);
-    data.acc_idx = data.accounts.len();
+    data.acc_idx = data.accounts.len() - 1;
     // First account added, setup password
     // Need to add password confirmation here
     if data.accounts.len() == 1 {
@@ -631,7 +730,10 @@ where
             on_success(s);
         } else {
             show_accounts(s);
-            s.add_layer(Dialog::info(StyledString::styled("Error saving accounts data. Account may not remain upon relaunching dagchat.", Color::Light(BaseColor::Red))));
+            s.add_layer(Dialog::info(StyledString::styled(
+                "Error saving accounts data. Account may not remain upon relaunching dagchat.",
+                Color::Light(BaseColor::Red),
+            )));
         }
     }
 }
@@ -639,19 +741,25 @@ where
 fn import_success(s: &mut Cursive, content: &str) {
     s.add_layer(
         Dialog::around(TextView::new(content).max_width(80))
-            .button("Begin", |s| receive::load_receivables(s))
+            .button("Load", |s| receive::load_receivables(s))
             .button("Back", |s| show_accounts(s)),
     );
 }
 
-fn new_success(s: &mut Cursive, seed: String) {
+fn new_success(s: &mut Cursive, mnemonic: String, seed: String) {
     let data = &mut s.user_data::<UserData>().unwrap();
-    let mut content = StyledString::styled("Successfully generated new account with seed: ", data.coin.colour);
+    let mut content = StyledString::styled("\nMnemonic\n", data.coin.colour);
+    content.append(StyledString::styled(&mnemonic, OFF_WHITE));
+    content.append(StyledString::styled("\n\nSeed\n", data.coin.colour));
     content.append(StyledString::styled(&seed, OFF_WHITE));
     s.add_layer(
         Dialog::around(TextView::new(content).max_width(80))
+            .h_align(HAlign::Center)
+            .button("Load", |s| receive::load_receivables(s))
+            .button("Back", |s| show_accounts(s))
+            .button("Copy mnemonic", move |s| copy_to_clip(s, mnemonic.clone()))
             .button("Copy seed", move |s| copy_to_clip(s, seed.clone()))
-            .button("Begin", |s| receive::load_receivables(s))
-            .button("Back", |s| show_accounts(s)),
+            .title("Successfully generated new account")
+            .max_width(80),
     );
 }
