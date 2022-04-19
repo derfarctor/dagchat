@@ -1,10 +1,12 @@
 use super::*;
-use aes_gcm::aead::{generic_array::GenericArray, Aead, NewAead};
-use aes_gcm::{Aes256Gcm, Nonce};
-use argon2::{self, Config};
 
-const SALT_LENGTH: usize = 16;
-const IV_LENGTH: usize = 12;
+use rand::RngCore;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AccountsAndLookup {
+    accounts_bytes: Vec<u8>,
+    lookup_bytes: Vec<u8>,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Account {
@@ -72,40 +74,14 @@ impl Account {
     }
 }
 
-pub fn check_setup(s: &mut Cursive) {
-    if let Some(mut data_dir) = dirs::data_dir() {
-        data_dir = data_dir.join("dagchat");
-        if data_dir.exists() {
-            load_accounts(s, data_dir);
-        } else {
-            fs::create_dir(data_dir.clone()).unwrap_or_else(|e| {
-                let content = format!(
-                    "Failed to create a data folder for dagchat at path: {:?}\nError: {}",
-                    data_dir, e
-                );
-                s.add_layer(Dialog::info(content))
-            });
-            if data_dir.exists() {
-                load_accounts(s, data_dir);
-            } else {
-                return;
-            }
-        }
-    } else {
-        s.add_layer(Dialog::info(
-            "Error locating the application data folder on your system.",
-        ));
-    }
-}
-
-fn load_accounts(s: &mut Cursive, data_path: PathBuf) {
+pub fn load_accounts(s: &mut Cursive, data_path: PathBuf) {
     s.pop_layer();
-    let accounts_file = data_path.join("accounts.dagchat");
+    let accounts_file = data_path.join(ACCOUNTS_PATH);
     if accounts_file.exists() {
         let encrypted_bytes = fs::read(&accounts_file).unwrap_or_else(|e| {
             let content = format!(
-                "Failed to read accounts.dagchat file at path: {:?}\nError: {}",
-                accounts_file, e
+                "Failed to read {} file at path: {:?}\nError: {}",
+                ACCOUNTS_PATH, accounts_file, e
             );
             s.add_layer(Dialog::info(content));
             vec![]
@@ -115,7 +91,7 @@ fn load_accounts(s: &mut Cursive, data_path: PathBuf) {
             return;
         }
         let data = &mut s.user_data::<UserData>().unwrap();
-        data.encrypted_accounts = encrypted_bytes;
+        data.encrypted_bytes = encrypted_bytes;
         s.add_layer(
             Dialog::around(
                 LinearLayout::vertical()
@@ -146,102 +122,64 @@ fn load_accounts(s: &mut Cursive, data_path: PathBuf) {
 
 fn load_with_password(s: &mut Cursive, password: &str) {
     let data = &mut s.user_data::<UserData>().unwrap();
-    let bytes = decrypt_accounts(&data.encrypted_accounts, &password);
-    if bytes.is_none() {
+    let bytes = decrypt_bytes(&data.encrypted_bytes, &password);
+    if bytes.is_err() {
         s.add_layer(Dialog::info("Password was incorrect."));
         return;
     }
     data.password = password.to_string();
 
-    let accounts_res = bincode::deserialize(&bytes.unwrap()[..]);
-    if accounts_res.is_err() {
+    let accounts_and_lookup_res = bincode::deserialize(&bytes.unwrap()[..]);
+    if accounts_and_lookup_res.is_err() {
         show_accounts(s);
-        s.add_layer(Dialog::info(StyledString::styled("Error parsing accounts.dagchat file. File was either corrupted or edited outside of dagchat.", Color::Dark(BaseColor::Red))));
+        s.add_layer(Dialog::info(StyledString::styled(
+            format!(
+                "Error parsing {} file. File was either corrupted or edited outside of dagchat.",
+                ACCOUNTS_PATH
+            ),
+            RED,
+        )));
     } else {
-        data.accounts = accounts_res.unwrap();
+        let accounts_and_lookup: AccountsAndLookup = accounts_and_lookup_res.unwrap();
+        data.accounts = bincode::deserialize(&accounts_and_lookup.accounts_bytes).unwrap();
+        data.lookup = bincode::deserialize(&accounts_and_lookup.lookup_bytes).unwrap();
         show_accounts(s);
     }
 }
 
-fn write_accounts(encrypted_bytes: Vec<u8>) -> bool {
-    let mut success = false;
+fn write_accounts(encrypted_bytes: Vec<u8>) -> Result<(), String> {
     if let Some(data_dir) = dirs::data_dir() {
-        let accounts_file = data_dir.join("dagchat/accounts.dagchat");
-        // Commented out code assumed unnecessary.
-        //if !accounts_file.exists() {
-        //    fs::File::create(&accounts_file).expect(&format!(
-        //        "Unable to create accounts.dagchat at path: {:?}",
-        //        &accounts_file
-        //    ));
-        //}
-        //if accounts_file.exists() {
-        success = true;
-        fs::write(&accounts_file, encrypted_bytes).unwrap_or_else(|e| {
-            success = false;
-            eprintln!(
-                "Failed to write to accounts.dagchat file at path: {:?}\nError: {}",
-                accounts_file, e
-            );
-        });
-        //}
+        let accounts_file = data_dir.join(DATA_DIR_PATH).join(ACCOUNTS_PATH);
+        let write_res = fs::write(&accounts_file, encrypted_bytes);
+        if write_res.is_err() {
+            return Err(format!(
+                "Failed to write to {} file at path: {:?}\nError: {:?}",
+                ACCOUNTS_PATH,
+                accounts_file,
+                write_res.err()
+            ));
+        }
     }
-    success
+    Ok(())
 }
 
-fn save_accounts(s: &mut Cursive) -> bool {
+pub fn save_accounts(s: &mut Cursive) -> Result<(), String> {
     let data = &s.user_data::<UserData>().unwrap();
-    let success: bool;
-    if data.accounts.is_empty() {
-        success = write_accounts(vec![]);
-    } else {
-        let encrypted_bytes = encrypt_accounts(&data.accounts, &data.password);
-        success = write_accounts(encrypted_bytes);
+    if data.accounts.is_empty() && data.lookup.is_empty() {
+        write_accounts(vec![])?;
+        return Ok(());
     }
-    success
-}
-
-fn derive_key(password: &str, salt: &[u8]) -> Vec<u8> {
-    let config = Config::default();
-    let hash = argon2::hash_raw(password.as_bytes(), salt, &config).unwrap();
-    hash
-}
-
-fn encrypt_accounts(accounts: &Vec<Account>, password: &str) -> Vec<u8> {
-    let mut csprng = rand::thread_rng();
-    let mut salt = [0u8; SALT_LENGTH];
-    csprng.fill_bytes(&mut salt);
-
-    let key_bytes = derive_key(password, &salt);
-    let key = GenericArray::from_slice(&key_bytes);
-    let encoded: Vec<u8> = bincode::serialize(accounts).unwrap();
-    let aead = Aes256Gcm::new(key);
-
-    let mut nonce_bytes = [0u8; 12];
-    csprng.fill_bytes(&mut nonce_bytes);
-    let nonce = Nonce::from_slice(&nonce_bytes);
-
-    let ciphertext = aead.encrypt(nonce, &encoded[..]).unwrap();
-    let mut encrypted_bytes = Vec::with_capacity(12 + ciphertext.len());
-    encrypted_bytes.extend(salt);
-    encrypted_bytes.extend(nonce);
-    encrypted_bytes.extend(ciphertext);
-    encrypted_bytes
-}
-
-fn decrypt_accounts(encrypted_bytes: &[u8], password: &str) -> Option<Vec<u8>> {
-    let salt = &encrypted_bytes[..SALT_LENGTH];
-
-    let key_bytes = derive_key(password, salt);
-    let key = GenericArray::from_slice(&key_bytes);
-
-    let aead = Aes256Gcm::new(&key);
-    let nonce = Nonce::from_slice(&encrypted_bytes[SALT_LENGTH..SALT_LENGTH + IV_LENGTH]);
-    let encrypted = &encrypted_bytes[SALT_LENGTH + IV_LENGTH..];
-    let decrypted = aead.decrypt(nonce, encrypted);
-    if decrypted.is_err() {
-        return None;
-    }
-    Some(decrypted.unwrap())
+    let accounts_bytes = bincode::serialize(&data.accounts).unwrap();
+    let lookup_bytes = bincode::serialize(&data.lookup).unwrap();
+    let accounts_and_lookup = AccountsAndLookup {
+        accounts_bytes,
+        lookup_bytes,
+    };
+    let encoded: Vec<u8> = bincode::serialize(&accounts_and_lookup).unwrap();
+    let encrypted_bytes = encrypt_bytes(&encoded, &data.password);
+    write_accounts(encrypted_bytes)?;
+    eprintln!("Saved accounts with password: {}", data.password);
+    Ok(())
 }
 
 pub fn show_accounts(s: &mut Cursive) {
@@ -320,9 +258,9 @@ fn select_account(s: &mut Cursive, _: &str) {
 
             let mut outer = Dialog::new()
                 .h_align(HAlign::Center)
-                .button("Load", |s| {
+                .button("Load", move |s| {
                     s.pop_layer();
-                    receive::load_receivables(s)
+                    load_current_account(s);
                 })
                 .button("Back", |s| {
                     s.pop_layer();
@@ -369,6 +307,13 @@ fn select_account(s: &mut Cursive, _: &str) {
     }
 }
 
+fn load_current_account(s: &mut Cursive) {
+    let messages = messages::load_messages(s);
+    let data = &mut s.user_data::<UserData>().unwrap();
+    eprintln!("Loaded messages: {:?}", messages);
+    data.acc_messages = messages;
+    receive::load_receivables(s);
+}
 fn backup_account(s: &mut Cursive, origin: &str) {
     let data = &mut s.user_data::<UserData>().unwrap();
     let account = &data.accounts[data.acc_idx];
@@ -500,24 +445,43 @@ fn remove_account(s: &mut Cursive, idx: usize) {
         "If you have not backed up this account, it will be lost forever.",
         RED,
     );
-    s.add_layer(Dialog::around(LinearLayout::vertical().child(DummyView).child(TextView::new(warning)).child(DummyView))
-    .h_align(HAlign::Center)
-    .button("Back", |s| {
-        s.pop_layer();
-    })
-    .button("Confirm", move |s| {
+    s.add_layer(
+        Dialog::around(
+            LinearLayout::vertical()
+                .child(DummyView)
+                .child(TextView::new(warning))
+                .child(DummyView),
+        )
+        .h_align(HAlign::Center)
+        .button("Back", |s| {
+            s.pop_layer();
+        })
+        .button("Confirm", move |s| {
             let data = &mut s.user_data::<UserData>().unwrap();
+            let account = &data.accounts[idx];
+            if data.lookup.contains_key(&account.address) {
+                let data_dir = dirs::data_dir().unwrap();
+                let messages_dir = data_dir.join(DATA_DIR_PATH).join(MESSAGES_DIR_PATH);
+                let filename = format!("{}.dagchat", data.lookup.get(&account.address).unwrap());
+                let messages_file = messages_dir.join(filename);
+                if !messages_file.exists() {
+                    data.lookup.remove(&account.address);
+                }
+            }
             data.accounts.remove(idx);
-            let success = save_accounts(s);
+            let save_res = save_accounts(s);
             s.pop_layer();
             s.pop_layer();
             s.pop_layer();
             show_accounts(s);
-            if !success {
-                s.add_layer(Dialog::info(StyledString::styled("Error saving accounts data. Account may not be removed upon relaunching dagchat.", RED)));
+            if save_res.is_err() {
+                s.add_layer(
+                    Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
+                        .title("Error saving accounts data"),
+                );
             }
         })
-        .title("Confirm account deletion")
+        .title("Confirm account deletion"),
     );
 }
 
@@ -680,7 +644,7 @@ fn new_account(s: &mut Cursive) {
     let account =
         Account::from_mnemonic(Some(mnemonic.clone()), Some(seed_bytes), &data.coin.prefix);
     setup_account(s, account, move |s| {
-        new_success(s, mnemonic.clone(), hex::encode(seed_bytes))
+        create_success(s, mnemonic.clone(), hex::encode(seed_bytes))
     });
 }
 
@@ -691,18 +655,20 @@ where
     let data = &mut s.user_data::<UserData>().unwrap();
     data.accounts.push(account);
     data.acc_idx = data.accounts.len() - 1;
-    if data.accounts.len() == 1 {
+
+    let data = &mut s.user_data::<UserData>().unwrap();
+    if data.accounts.len() == 1 && data.password.is_empty() {
         set_password(s, on_success);
     } else {
-        let success = save_accounts(s);
-        if success {
+        let save_res = save_accounts(s);
+        if save_res.is_ok() {
             on_success(s);
         } else {
             show_accounts(s);
-            s.add_layer(Dialog::info(StyledString::styled(
-                "Error saving accounts data. Account may not remain upon relaunching dagchat.",
-                RED,
-            )));
+            s.add_layer(
+                Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
+                    .title("Error saving accounts data"),
+            );
         }
     }
 }
@@ -742,18 +708,23 @@ where
                 s.add_layer(Dialog::info("Passwords did not match."));
                 return;
             }
+            let msg_save_res = messages::change_message_passwords(s, &password);
             let data = &mut s.user_data::<UserData>().unwrap();
             data.password = password.to_string();
-            let success = save_accounts(s);
+            let acc_save_res = save_accounts(s);
             s.pop_layer();
-            if success {
+            if acc_save_res.is_ok() && msg_save_res.is_ok() {
                 on_success(s);
-            } else {
+            } else if acc_save_res.is_err() {
                 show_accounts(s);
-                s.add_layer(Dialog::info(StyledString::styled(
-                    "Error saving accounts data. Account may not remain upon relaunching dagchat.",
+                s.add_layer(Dialog::info(StyledString::styled(acc_save_res.err().unwrap(),
                     RED,
-                )));
+                )).title("Fatal error saving accounts"));
+            } else if msg_save_res.is_err() {
+                show_accounts(s);
+                s.add_layer(Dialog::info(StyledString::styled(msg_save_res.err().unwrap(),
+                    RED,
+                )).title("Fatal error saving messages"));
             }
         })
         .button("Info", |s| {
@@ -767,12 +738,12 @@ where
 fn import_success(s: &mut Cursive, content: &str) {
     s.add_layer(
         Dialog::around(TextView::new(content).max_width(80))
-            .button("Load", |s| receive::load_receivables(s))
+            .button("Load", |s| load_current_account(s))
             .button("Back", |s| show_accounts(s)),
     );
 }
 
-fn new_success(s: &mut Cursive, mnemonic: String, seed: String) {
+fn create_success(s: &mut Cursive, mnemonic: String, seed: String) {
     let data = &mut s.user_data::<UserData>().unwrap();
     let mut content = StyledString::styled("\nMnemonic\n", data.coin.colour);
     content.append(StyledString::styled(&mnemonic, OFF_WHITE));
@@ -781,7 +752,7 @@ fn new_success(s: &mut Cursive, mnemonic: String, seed: String) {
     s.add_layer(
         Dialog::around(TextView::new(content).max_width(80))
             .h_align(HAlign::Center)
-            .button("Load", |s| receive::load_receivables(s))
+            .button("Load", |s| load_current_account(s))
             .button("Back", |s| show_accounts(s))
             .button("Copy mnemonic", move |s| copy_to_clip(s, mnemonic.clone()))
             .button("Copy seed", move |s| copy_to_clip(s, seed.clone()))

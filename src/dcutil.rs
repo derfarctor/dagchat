@@ -1,3 +1,6 @@
+use aes_gcm::aead::{generic_array::GenericArray, Aead, NewAead};
+use aes_gcm::{Aes256Gcm, Nonce};
+use argon2::{self, Config};
 use bigdecimal::BigDecimal;
 use bitreader::BitReader;
 use blake2::digest::{Update, VariableOutput};
@@ -6,6 +9,7 @@ use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
 use ecies_ed25519;
 use ed25519_dalek;
+use rand::RngCore;
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -13,8 +17,9 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::str;
 use std::str::FromStr;
+
 // Will do something dynamic with reps in future
-use crate::defaults;
+use crate::defaults::*;
 
 // Used to update progress bar in cursive app
 // Each counter has 1000 ticks
@@ -165,7 +170,7 @@ pub fn send_message(
     node_url: &str,
     addr_prefix: &str,
     counter: &Counter,
-) {
+) -> String {
     let public_key_bytes = to_public_key(&target_address);
     let mut message = message.clone();
     let pad = (message.len() + 28) % 32;
@@ -258,6 +263,7 @@ pub fn send_message(
         &addr_prefix,
     );
     publish_block(block, sub.clone(), node_url);
+    hex::encode(last_block_hash)
 }
 
 pub fn change_rep(
@@ -307,9 +313,9 @@ pub fn receive_block(
     if account_info_opt.is_none() {
         // OPEN BLOCK
         if addr_prefix == "nano_" {
-            representative = to_public_key(defaults::DEFAULT_REP_NANO);
+            representative = to_public_key(DEFAULT_REP_NANO);
         } else if addr_prefix == "ban_" {
-            representative = to_public_key(defaults::DEFAULT_REP_BANANO);
+            representative = to_public_key(DEFAULT_REP_BANANO);
         } else {
             panic!("Unknown network... no default rep to open account.");
         }
@@ -672,6 +678,53 @@ pub fn validate_mnemonic(mnemonic: &str) -> Option<[u8; 32]> {
     }
 
     Some(entropy)
+}
+
+pub fn derive_key(password: &str, salt: &[u8]) -> Vec<u8> {
+    let config = Config::default();
+    let hash = argon2::hash_raw(password.as_bytes(), salt, &config).unwrap();
+    hash
+}
+
+pub fn decrypt_bytes(encrypted_bytes: &Vec<u8>, password: &str) -> Result<Vec<u8>, String> {
+    let salt = &encrypted_bytes[..SALT_LENGTH];
+
+    let key_bytes = derive_key(password, salt);
+    let key = GenericArray::from_slice(&key_bytes);
+
+    let aead = Aes256Gcm::new(&key);
+    let nonce = Nonce::from_slice(&encrypted_bytes[SALT_LENGTH..SALT_LENGTH + IV_LENGTH]);
+    let encrypted = &encrypted_bytes[SALT_LENGTH + IV_LENGTH..];
+    let decrypted = aead.decrypt(nonce, encrypted);
+    match decrypted {
+        Ok(decrypted) => {
+            return Ok(decrypted);
+        }
+        Err(e) => {
+            return Err(format!("Failed to decrypt bytes. Error: {}", e));
+        }
+    }
+}
+
+pub fn encrypt_bytes(bytes: &Vec<u8>, password: &str) -> Vec<u8> {
+    let mut csprng = rand::thread_rng();
+    let mut salt = [0u8; SALT_LENGTH];
+    csprng.fill_bytes(&mut salt);
+    let key_bytes = derive_key(password, &salt);
+    let key = GenericArray::from_slice(&key_bytes);
+
+    let aead = Aes256Gcm::new(key);
+
+    let mut nonce_bytes = [0u8; IV_LENGTH];
+    csprng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+
+    let ciphertext = aead.encrypt(nonce, &bytes[..]).unwrap();
+    let mut encrypted_bytes = Vec::with_capacity(SALT_LENGTH + IV_LENGTH + ciphertext.len());
+    encrypted_bytes.extend(salt);
+    encrypted_bytes.extend(nonce);
+    encrypted_bytes.extend(ciphertext);
+    encrypted_bytes
 }
 
 pub fn get_private_key(seed_bytes: &[u8; 32], idx: u32) -> [u8; 32] {

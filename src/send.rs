@@ -1,5 +1,7 @@
 use super::*;
 
+use std::time::SystemTime;
+
 pub fn show_send(s: &mut Cursive, with_message: bool) {
     s.pop_layer();
 
@@ -195,30 +197,60 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
             .range(0, ticks)
             .with_task(move |counter| {
                 let with_message = !message.is_empty();
+                let mut hash = String::from("");
                 if !with_message {
                     send(
                         &private_key_bytes,
-                        address,
+                        address.clone(),
                         raw,
                         &node_url,
                         &prefix,
                         &counter,
                     );
                 } else {
-                    send_message(
+                    hash = send_message(
                         &private_key_bytes,
-                        address,
+                        address.clone(),
                         raw,
-                        message,
+                        message.clone(),
                         &node_url,
                         &prefix,
                         &counter,
                     );
                 }
                 cb.send(Box::new(move |s| {
+                    let mut save_res = Ok(());
+                    let data = &mut s.user_data::<UserData>().unwrap();
+                    if with_message {
+                        data.acc_messages.as_mut().unwrap().push(SavedMessage {
+                            outgoing: false,
+                            address: address.clone(),
+                            timestamp: match SystemTime::now()
+                                .duration_since(SystemTime::UNIX_EPOCH)
+                            {
+                                Ok(n) => n.as_secs() as u64,
+                                Err(_) => 0u64,
+                            },
+                            amount: display_to_dp(
+                                raw,
+                                SHOW_TO_DP,
+                                &data.coin.multiplier,
+                                &data.coin.ticker,
+                            ),
+                            hash: hash,
+                            plaintext: message.clone(),
+                        });
+                        save_res = messages::save_messages(s);
+                    }
                     let data = &mut s.user_data::<UserData>().unwrap();
                     data.accounts[data.acc_idx].balance -= raw;
                     show_sent(s, with_message);
+                    if save_res.is_err() {
+                        s.add_layer(
+                            Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
+                                .title("Failed to save messages"),
+                        );
+                    }
                 }))
                 .unwrap();
             })

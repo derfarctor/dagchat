@@ -1,5 +1,7 @@
 use super::*;
 
+use std::time::SystemTime;
+
 pub fn show_message_info(s: &mut Cursive, _name: &str) {
     let select = s.find_name::<SelectView<String>>("select").unwrap();
     match select.selected_id() {
@@ -112,8 +114,10 @@ pub fn load_receivables(s: &mut Cursive) {
 fn process_receive(s: &mut Cursive, idx: usize) {
     let data = &s.user_data::<UserData>().unwrap();
     let private_key = data.accounts[data.acc_idx].private_key;
-    let send_block_hash = data.accounts[data.acc_idx].receivables[idx].hash.clone();
-    let amount = data.accounts[data.acc_idx].receivables[idx].amount;
+    let receivable = &data.accounts[data.acc_idx].receivables[idx];
+    let send_block_hash = receivable.hash.clone();
+
+    let amount = receivable.amount;
     let address = data.accounts[data.acc_idx].address.clone();
     let prefix = data.coin.prefix.clone();
     let node_url = data.coin.node_url.clone();
@@ -138,6 +142,34 @@ fn process_receive(s: &mut Cursive, idx: usize) {
                     select.remove_item(idx);
                     let mut balance = s.find_name::<TextView>("balance").unwrap();
                     let data = &mut s.user_data::<UserData>().unwrap();
+                    let receivable = &data.accounts[data.acc_idx].receivables[idx];
+                    let send_block_hash = receivable.hash.clone();
+                    let amount = receivable.amount;
+                    let has_message = { receivable.message.is_some() };
+
+                    let mut save_res = Ok(());
+                    if has_message {
+                        data.acc_messages.as_mut().unwrap().push(SavedMessage {
+                            outgoing: false,
+                            address: receivable.source.clone(),
+                            timestamp: match SystemTime::now()
+                                .duration_since(SystemTime::UNIX_EPOCH)
+                            {
+                                Ok(n) => n.as_secs() as u64,
+                                Err(_) => 0u64,
+                            },
+                            amount: display_to_dp(
+                                amount,
+                                SHOW_TO_DP,
+                                &data.coin.multiplier,
+                                &data.coin.ticker,
+                            ),
+                            hash: send_block_hash.clone(),
+                            plaintext: receivable.message.as_ref().unwrap().plaintext.clone(),
+                        });
+                        save_res = messages::save_messages(s);
+                    }
+                    let data = &mut s.user_data::<UserData>().unwrap();
                     let account = &mut data.accounts[data.acc_idx];
                     account.receivables.remove(idx);
                     account.balance += amount;
@@ -151,6 +183,12 @@ fn process_receive(s: &mut Cursive, idx: usize) {
                     balance.set_content(StyledString::styled(bal_text, data.coin.colour));
                     s.pop_layer();
                     s.pop_layer();
+                    if save_res.is_err() {
+                        s.add_layer(
+                            Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
+                                .title("Failed to save messages"),
+                        );
+                    }
                 }))
                 .unwrap();
             })

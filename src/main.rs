@@ -10,20 +10,22 @@ use cursive::views::{
 };
 use cursive::Cursive;
 use dirs;
-use rand::RngCore;
+
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
 pub mod defaults;
-use defaults::SHOW_TO_DP;
-
+use defaults::{ACCOUNTS_PATH, DATA_DIR_PATH, MESSAGES_DIR_PATH, SHOW_TO_DP};
 // dagchat util
 mod dcutil;
 use dcutil::*;
 
-// dagchat accounts util
+// dagchat accounts and messages util
 mod accounts;
+mod messages;
+use messages::SavedMessage;
 
 // send and receive with dagchat
 mod receive;
@@ -33,8 +35,10 @@ pub struct UserData {
     pub password: String,
     pub accounts: Vec<accounts::Account>,
     pub acc_idx: usize,
+    pub acc_messages: Result<Vec<SavedMessage>, String>,
+    pub lookup: HashMap<String, String>,
     pub coin: Coin,
-    pub encrypted_accounts: Vec<u8>,
+    pub encrypted_bytes: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -76,8 +80,10 @@ impl UserData {
             password: String::from(""),
             accounts: vec![],
             acc_idx: 0,
+            lookup: HashMap::new(),
+            acc_messages: Ok(vec![]),
             coin: Coin::nano(),
-            encrypted_accounts: vec![],
+            encrypted_bytes: vec![],
         }
     }
 }
@@ -101,8 +107,6 @@ fn main() {
 
     let mut siv = cursive::default();
     siv.set_window_title(format!("dagchat {}", VERSION));
-    let data = UserData::new();
-    siv.set_user_data(data);
 
     show_title(&mut siv);
 
@@ -110,6 +114,9 @@ fn main() {
 }
 
 fn show_title(s: &mut Cursive) {
+    let data = UserData::new();
+    s.set_user_data(data);
+
     set_theme(s, "nano", false);
     let mut theme_group: RadioGroup<bool> = RadioGroup::new();
 
@@ -137,7 +144,7 @@ fn show_title(s: &mut Cursive) {
                 data.coin = Coin::banano();
             });
         }
-        accounts::check_setup(s);
+        check_setup(s);
     });
 
     s.add_layer(
@@ -154,9 +161,6 @@ fn show_title(s: &mut Cursive) {
     );
 }
 
-// Functions below are used across main.rs, send.rs,
-// receive.rs and accounts.rs
-
 fn go_back(s: &mut Cursive) {
     s.pop_layer();
 }
@@ -172,19 +176,41 @@ fn get_subtitle_colour(s: &mut Cursive) -> Color {
     sub_title_colour
 }
 
-/*
-fn alpha_info(s: &mut Cursive) {
-    s.pop_layer();
-    let data = &s.user_data::<UserData>().unwrap();
-    let mut info = StyledString::styled("Information for alpha testers:\n", data.coin.colour);
-    info.append(StyledString::styled("This is the inbox. Messages sent to you with 1 raw have already been identified as messages, but messages sent with an arbitrary amount will not yet have been detected. Select 'Find messages' from the buttons on the right to scan your list of receivables and identify these.", OFF_WHITE));
-    s.add_layer(
-        Dialog::around(TextView::new(info))
-            .button("Go to inbox", |s| receive::load_receivables(s))
-            .max_width(60),
-    );
+fn check_setup(s: &mut Cursive) {
+    if let Some(data_dir) = dirs::data_dir() {
+        let dagchat_dir = data_dir.join(DATA_DIR_PATH);
+        let messages_dir = dagchat_dir.join(MESSAGES_DIR_PATH);
+        if !dagchat_dir.exists() {
+            fs::create_dir(&dagchat_dir).unwrap_or_else(|e| {
+                let content = format!(
+                    "Failed to create a data folder for dagchat at path: {:?}\nError: {}",
+                    dagchat_dir, e
+                );
+                s.add_layer(Dialog::info(content))
+            });
+            if !dagchat_dir.exists() {
+                return;
+            }
+        }
+        if !messages_dir.exists() {
+            fs::create_dir(&messages_dir).unwrap_or_else(|e| {
+                let content = format!(
+                    "Failed to create a messages folder for dagchat at path: {:?}\nError: {}",
+                    messages_dir, e
+                );
+                s.add_layer(Dialog::info(content))
+            });
+            if !messages_dir.exists() {
+                return;
+            }
+        }
+        accounts::load_accounts(s, dagchat_dir);
+    } else {
+        s.add_layer(Dialog::info(
+            "Error locating the application data folder on your system.",
+        ));
+    }
 }
-*/
 
 fn show_change_rep(s: &mut Cursive) {
     s.pop_layer();
