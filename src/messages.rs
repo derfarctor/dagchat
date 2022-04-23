@@ -1,4 +1,6 @@
 use super::*;
+use chrono::prelude::DateTime;
+use chrono::{Local, NaiveDateTime, Utc};
 use rand::RngCore;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -18,11 +20,63 @@ pub fn create_key(s: &mut Cursive) -> String {
     let mut csprng = rand::thread_rng();
     let mut random_id = [0u8; 32];
     csprng.fill_bytes(&mut random_id);
-    eprintln!("{} : {}", address, hex::encode(random_id));
+    //eprintln!("{} : {}", address, hex::encode(random_id));
     data.lookup.insert(address, hex::encode(random_id));
     hex::encode(random_id)
 }
 
+pub fn view_messages(s: &mut Cursive) {
+    let data = &mut s.user_data::<UserData>().unwrap();
+    let messages = &data.acc_messages;
+    if messages.is_err() {
+        let err_msg = messages.as_ref().err().unwrap().clone();
+        s.add_layer(Dialog::info(err_msg));
+        return;
+    }
+
+    let mut output = StyledString::new();
+    for message in messages.as_ref().unwrap().iter().rev() {
+        let datetime: DateTime<Local> = DateTime::from(DateTime::<Utc>::from_utc(
+            NaiveDateTime::from_timestamp(message.timestamp as i64, 0),
+            Utc,
+        ));
+
+        let timestamp_str = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+        let a: &str;
+        let b: &str;
+        if message.outgoing {
+            a = "Sent";
+            b = "To:";
+        } else {
+            a = "Received";
+            b = "From:";
+        }
+        let mut message_info = StyledString::styled(format!("{} at: ", a), OFF_WHITE);
+        message_info.append(StyledString::styled(timestamp_str, data.coin.colour));
+        message_info.append(StyledString::styled(format!("\n{} ", b), OFF_WHITE));
+        message_info.append(StyledString::styled(&message.address, data.coin.colour));
+        if !message.plaintext.is_empty() {
+            message_info.append(StyledString::styled("\nMessage: ", OFF_WHITE));
+            message_info.append(StyledString::styled(&message.plaintext, data.coin.colour));
+        }
+        message_info.append(StyledString::styled("\nAmount: ", OFF_WHITE));
+        message_info.append(StyledString::styled(
+            format!("{}\n\n", message.amount),
+            data.coin.colour,
+        ));
+        output.append(message_info);
+    }
+    s.add_layer(
+        Dialog::around(
+            TextView::new(output)
+                .scrollable()
+                .max_width(73)
+                .max_height(10),
+        )
+        .button("Back", |s| go_back(s))
+        .title("Message history"),
+    );
+}
 pub fn load_messages(s: &mut Cursive) -> Result<Vec<SavedMessage>, String> {
     let data = &mut s.user_data::<UserData>().unwrap();
     let mut messages: Vec<SavedMessage> = vec![];
@@ -88,7 +142,7 @@ pub fn save_messages(s: &mut Cursive) -> Result<(), String> {
             write_res.err()
         ));
     }
-    eprintln!("Saved messages with password: {}", data.password);
+    //eprintln!("Saved messages with password: {}", data.password);
     Ok(())
 }
 
@@ -101,7 +155,7 @@ pub fn change_message_passwords(s: &mut Cursive, new_password: &str) -> Result<(
         let filename = format!("{}.dagchat", lookup_key);
         let messages_file = messages_dir.join(filename);
         if messages_file.exists() {
-            eprintln!("Changing file password for {}", a);
+            //eprintln!("Changing file password for {}", a);
             let mut error = String::from("");
             let encrypted_bytes = fs::read(&messages_file).unwrap_or_else(|e| {
                 error = format!(
@@ -125,9 +179,9 @@ pub fn change_message_passwords(s: &mut Cursive, new_password: &str) -> Result<(
             }
         }
     }
-    eprintln!(
-        "Saved and changed all new messages with password: {}",
-        new_password
-    );
+    //eprintln!(
+    //    "Saved and changed all new messages with password: {}",
+    //    new_password
+    //);
     Ok(())
 }

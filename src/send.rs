@@ -223,12 +223,12 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
                     let data = &mut s.user_data::<UserData>().unwrap();
                     if with_message {
                         data.acc_messages.as_mut().unwrap().push(SavedMessage {
-                            outgoing: false,
+                            outgoing: true,
                             address: address.clone(),
                             timestamp: match SystemTime::now()
                                 .duration_since(SystemTime::UNIX_EPOCH)
                             {
-                                Ok(n) => n.as_secs() as u64,
+                                Ok(n) => n.as_secs(),
                                 Err(_) => 0u64,
                             },
                             amount: display_to_dp(
@@ -237,7 +237,7 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
                                 &data.coin.multiplier,
                                 &data.coin.ticker,
                             ),
-                            hash: hash,
+                            hash,
                             plaintext: message.clone(),
                         });
                         save_res = messages::save_messages(s);

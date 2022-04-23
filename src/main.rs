@@ -310,6 +310,7 @@ fn show_inbox(s: &mut Cursive) {
     let send_label = format!("Send {}", data.coin.name);
     let buttons = LinearLayout::vertical()
         .child(Button::new("Refresh", |s| receive::load_receivables(s)))
+        .child(Button::new("Messages", |s| messages::view_messages(s)))
         .child(DummyView)
         .child(Button::new(send_label, |s| send::show_send(s, false)))
         .child(Button::new("Send message", |s| send::show_send(s, true)))

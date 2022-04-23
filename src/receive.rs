@@ -155,7 +155,7 @@ fn process_receive(s: &mut Cursive, idx: usize) {
                             timestamp: match SystemTime::now()
                                 .duration_since(SystemTime::UNIX_EPOCH)
                             {
-                                Ok(n) => n.as_secs() as u64,
+                                Ok(n) => n.as_secs(),
                                 Err(_) => 0u64,
                             },
                             amount: display_to_dp(

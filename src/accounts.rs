@@ -178,7 +178,7 @@ pub fn save_accounts(s: &mut Cursive) -> Result<(), String> {
     let encoded: Vec<u8> = bincode::serialize(&accounts_and_lookup).unwrap();
     let encrypted_bytes = encrypt_bytes(&encoded, &data.password);
     write_accounts(encrypted_bytes)?;
-    eprintln!("Saved accounts with password: {}", data.password);
+    //eprintln!("Saved accounts with password: {}", data.password);
     Ok(())
 }
 
@@ -310,7 +310,7 @@ fn select_account(s: &mut Cursive, _: &str) {
 fn load_current_account(s: &mut Cursive) {
     let messages = messages::load_messages(s);
     let data = &mut s.user_data::<UserData>().unwrap();
-    eprintln!("Loaded messages: {:?}", messages);
+    //eprintln!("Loaded messages: {:?}", messages);
     data.acc_messages = messages;
     receive::load_receivables(s);
 }
