@@ -14,7 +14,26 @@ pub struct SavedMessage {
     pub hash: String,
 }
 
-pub fn create_key(s: &mut Cursive) -> String {
+#[derive(Debug, Clone)]
+pub struct Filter {
+    pub incoming: bool,
+    pub outgoing: bool,
+    pub gt_1_raw: bool,
+    pub eq_1_raw: bool,
+}
+
+impl Default for Filter {
+    fn default() -> Filter {
+        Filter {
+            incoming: true,
+            outgoing: true,
+            gt_1_raw: true,
+            eq_1_raw: true,
+        }
+    }
+}
+
+pub fn create_key(s: &mut Cursive) -> Result<String, String> {
     let data = &mut s.user_data::<UserData>().unwrap();
     let address = data.accounts[data.acc_idx].address.clone();
     let mut csprng = rand::thread_rng();
@@ -22,20 +41,101 @@ pub fn create_key(s: &mut Cursive) -> String {
     csprng.fill_bytes(&mut random_id);
     //eprintln!("{} : {}", address, hex::encode(random_id));
     data.lookup.insert(address, hex::encode(random_id));
-    hex::encode(random_id)
+    accounts::save_accounts(s)?;
+    Ok(hex::encode(random_id))
 }
 
-pub fn view_messages(s: &mut Cursive) {
+pub fn edit_filter(s: &mut Cursive, filter: Filter) {
+    let mut message_dir: RadioGroup<u8> = RadioGroup::new();
+    let mut message_amount: RadioGroup<u8> = RadioGroup::new();
+
+    let data = &mut s.user_data::<UserData>().unwrap();
+
+    let content = LinearLayout::vertical()
+        .child(DummyView)
+        .child(TextView::new(StyledString::styled(
+            "Message type",
+            OFF_WHITE,
+        )))
+        .child(
+            LinearLayout::horizontal()
+                .child(message_dir.button(0, "Both").selected())
+                .child(DummyView)
+                .child(message_dir.button(1, "Sent"))
+                .child(DummyView)
+                .child(message_dir.button(2, "Received")),
+        )
+        .child(DummyView)
+        .child(TextView::new(StyledString::styled(
+            "Message amount",
+            OFF_WHITE,
+        )))
+        .child(
+            LinearLayout::horizontal()
+                .child(message_amount.button(0, "Both").selected())
+                .child(DummyView)
+                .child(message_amount.button(1, "1 RAW"))
+                .child(DummyView)
+                .child(message_amount.button(2, format!("Custom {}", data.coin.ticker.trim()))),
+        );
+    s.add_layer(
+        Dialog::around(content)
+            .h_align(HAlign::Center)
+            .button("Apply", move |s| {
+                let mut filter = filter.clone();
+                let dir = message_dir.selection();
+                let amount = message_amount.selection();
+                if *dir == 0 {
+                    filter.outgoing = true;
+                    filter.outgoing = true;
+                } else if *dir == 1 {
+                    filter.outgoing = true;
+                    filter.incoming = false;
+                } else if *dir == 2 {
+                    filter.outgoing = false;
+                    filter.incoming = true;
+                }
+                if *amount == 0 {
+                    filter.eq_1_raw = true;
+                    filter.gt_1_raw = true;
+                } else if *amount == 1 {
+                    filter.eq_1_raw = true;
+                    filter.gt_1_raw = false;
+                } else if *amount == 2 {
+                    filter.eq_1_raw = false;
+                    filter.gt_1_raw = true;
+                }
+                s.pop_layer();
+                s.pop_layer();
+                view_messages(s, filter);
+            })
+            .title("Filter setup"),
+    );
+}
+
+pub fn view_messages(s: &mut Cursive, filter: Filter) {
     let data = &mut s.user_data::<UserData>().unwrap();
     let messages = &data.acc_messages;
     if messages.is_err() {
         let err_msg = messages.as_ref().err().unwrap().clone();
         s.add_layer(Dialog::info(err_msg));
         return;
+    } else if messages.as_ref().unwrap().is_empty() {
+        s.add_layer(Dialog::info(
+            "You haven't sent or received any messages yet with dagchat!",
+        ));
+        return;
     }
 
     let mut output = StyledString::new();
     for message in messages.as_ref().unwrap().iter().rev() {
+        if (message.outgoing && !filter.outgoing)
+            || (!message.outgoing && !filter.incoming)
+            || (message.amount == "1 RAW" && !filter.eq_1_raw)
+            || (message.amount != "1 RAW" && !filter.gt_1_raw)
+        {
+            continue;
+        }
         let datetime: DateTime<Local> = DateTime::from(DateTime::<Utc>::from_utc(
             NaiveDateTime::from_timestamp(message.timestamp as i64, 0),
             Utc,
@@ -68,21 +168,33 @@ pub fn view_messages(s: &mut Cursive) {
     }
     s.add_layer(
         Dialog::around(
-            TextView::new(output)
-                .scrollable()
-                .max_width(73)
-                .max_height(10),
+            LinearLayout::vertical()
+                .child(
+                    LinearLayout::horizontal()
+                        .child(Button::new("Filter", move |s| {
+                            edit_filter(s, filter.clone())
+                        }))
+                        .child(DummyView)
+                        .child(Button::new("Back", |s| go_back(s))),
+                )
+                .child(DummyView)
+                .child(
+                    TextView::new(output)
+                        .scrollable()
+                        .max_width(73)
+                        .max_height(10),
+                ),
         )
-        .button("Back", |s| go_back(s))
         .title("Message history"),
     );
 }
+
 pub fn load_messages(s: &mut Cursive) -> Result<Vec<SavedMessage>, String> {
     let data = &mut s.user_data::<UserData>().unwrap();
     let mut messages: Vec<SavedMessage> = vec![];
     let lookup_key = match data.lookup.get(&data.accounts[data.acc_idx].address) {
         Some(id) => id.to_owned(),
-        None => create_key(s),
+        None => create_key(s)?,
     };
     let data = &mut s.user_data::<UserData>().unwrap();
     let data_dir = dirs::data_dir().unwrap();
@@ -128,7 +240,7 @@ pub fn save_messages(s: &mut Cursive) -> Result<(), String> {
     let address = &data.accounts[data.acc_idx].address;
     let lookup_key = match data.lookup.get(address) {
         Some(id) => id.to_owned(),
-        None => create_key(s),
+        None => create_key(s)?,
     };
     let data = &mut s.user_data::<UserData>().unwrap();
     let messages_file = messages_dir.join(format!("{}.dagchat", lookup_key));

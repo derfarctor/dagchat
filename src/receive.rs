@@ -15,7 +15,7 @@ pub fn show_message_info(s: &mut Cursive, _name: &str) {
             let plaintext: String;
 
             let mut content = LinearLayout::vertical();
-            let mut title = format!("{} Receivable", &data.coin.ticker);
+            let mut title = format!("{} Receivable", &data.coin.ticker.trim());
             let mut receive_label = String::from("");
             if receivable.message.is_some() {
                 receive_label = String::from(" and mark read");

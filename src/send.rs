@@ -64,7 +64,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         form_content.add_child(TextArea::new().with_name("message").max_width(80));
         form_content.add_child(DummyView);
         form_content.add_child(TextView::new(StyledString::styled(
-            format!("Optional {}", ticker),
+            format!("Optional {}", ticker.trim()),
             sub_title_colour,
         )));
         form_content.add_child(TextArea::new().with_name("amount"));

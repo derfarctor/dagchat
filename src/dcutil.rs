@@ -492,7 +492,18 @@ pub fn get_blocks_info(hashes: Vec<String>, node_url: &str) -> BlocksInfoRespons
         include_not_found: true,
     };
     let body = serde_json::to_string(&request).unwrap();
+    //eprintln!("Body: {}", body);
     let response = post_node(body, node_url);
+
+    // Somewhat hacky way to catch this error. Would be better off implementing
+    // some proper serde deserialisation with untagged flag.
+    if response.contains("\"blocks\": \"\"") {
+        return BlocksInfoResponse {
+            blocks: BlocksResponse {
+                data: HashMap::new(),
+            },
+        };
+    }
     let blocks_info_response: BlocksInfoResponse = serde_json::from_str(&response).unwrap();
     blocks_info_response
 }
