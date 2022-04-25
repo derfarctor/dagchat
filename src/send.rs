@@ -6,13 +6,15 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
     s.pop_layer();
 
     let data = &s.user_data::<UserData>().unwrap();
-    let balance = data.accounts[data.acc_idx].balance;
+    let wallet = &data.wallets[data.wallet_idx];
+    let account = &wallet.accounts[wallet.acc_idx];
+    let balance = account.balance;
     let coin = data.coin.name.clone();
     let ticker = data.coin.ticker.clone();
     let multiplier = data.coin.multiplier.clone();
 
     if balance == 0 {
-        let address = data.accounts[data.acc_idx].address.clone();
+        let address = account.address.clone();
         let no_balance_message;
         if with_message {
             no_balance_message = String::from("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. One faucet claim will last you a lifetime.");
@@ -189,7 +191,8 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
     let cb = s.cb_sink().clone();
     let data = &mut s.user_data::<UserData>().unwrap();
     let node_url = data.coin.node_url.clone();
-    let private_key_bytes = data.accounts[data.acc_idx].private_key;
+    let wallet = &data.wallets[data.wallet_idx];
+    let private_key_bytes = wallet.accounts[wallet.acc_idx].private_key;
     let prefix = data.coin.prefix.clone();
     s.pop_layer();
     s.add_layer(Dialog::around(
@@ -221,8 +224,11 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
                 cb.send(Box::new(move |s| {
                     let mut save_res = Ok(());
                     let data = &mut s.user_data::<UserData>().unwrap();
+                    let wallet = &mut data.wallets[data.wallet_idx];
+                    let account = &mut wallet.accounts[wallet.acc_idx];
+                    account.balance -= raw;
                     if with_message {
-                        data.acc_messages.as_mut().unwrap().push(SavedMessage {
+                        account.messages.as_mut().unwrap().push(SavedMessage {
                             outgoing: true,
                             address: address.clone(),
                             timestamp: match SystemTime::now()
@@ -242,8 +248,6 @@ fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
                         });
                         save_res = messages::save_messages(s);
                     }
-                    let data = &mut s.user_data::<UserData>().unwrap();
-                    data.accounts[data.acc_idx].balance -= raw;
                     show_sent(s, with_message);
                     if save_res.is_err() {
                         s.add_layer(

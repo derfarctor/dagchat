@@ -20,6 +20,7 @@ pub struct Filter {
     pub outgoing: bool,
     pub gt_1_raw: bool,
     pub eq_1_raw: bool,
+    pub search_term: Option<String>,
 }
 
 impl Default for Filter {
@@ -29,23 +30,64 @@ impl Default for Filter {
             outgoing: true,
             gt_1_raw: true,
             eq_1_raw: true,
+            search_term: None,
         }
     }
 }
 
 pub fn create_key(s: &mut Cursive) -> Result<String, String> {
     let data = &mut s.user_data::<UserData>().unwrap();
-    let address = data.accounts[data.acc_idx].address.clone();
+    let wallet = &data.wallets[data.wallet_idx];
+    let address = wallet.accounts[wallet.acc_idx].address.clone();
     let mut csprng = rand::thread_rng();
     let mut random_id = [0u8; 32];
     csprng.fill_bytes(&mut random_id);
     //eprintln!("{} : {}", address, hex::encode(random_id));
     data.lookup.insert(address, hex::encode(random_id));
-    accounts::save_accounts(s)?;
+    wallets::save_wallets(s)?;
     Ok(hex::encode(random_id))
 }
 
-pub fn edit_filter(s: &mut Cursive, filter: Filter) {
+pub fn show_search(s: &mut Cursive, filter: Filter) {
+    let content = LinearLayout::vertical()
+        .child(DummyView)
+        .child(TextView::new(StyledString::styled(
+            "Search term or address",
+            OFF_WHITE,
+        )))
+        .child(TextArea::new().with_name("search").max_width(66))
+        .child(LinearLayout::horizontal().child(Button::new("Paste", |s| {
+            s.call_on_name("search", |view: &mut TextArea| {
+                let mut clipboard = Clipboard::new().unwrap();
+                let clip = clipboard
+                    .get_text()
+                    .unwrap_or_else(|_| String::from("Failed to read clipboard."));
+                view.set_content(clip);
+            })
+            .unwrap();
+        })));
+    s.add_layer(
+        Dialog::around(content)
+            .h_align(HAlign::Center)
+            .button("Search", move |s| {
+                let mut filter = filter.clone();
+                s.call_on_name("search", |view: &mut TextArea| {
+                    if view.get_content().trim().is_empty() {
+                        filter.search_term = None;
+                    } else {
+                        filter.search_term = Some(String::from(view.get_content()));
+                    }
+                });
+                s.pop_layer();
+                s.pop_layer();
+                show_messages(s, filter);
+            })
+            .button("Back", |s| go_back(s))
+            .title("Search"),
+    )
+}
+
+pub fn show_filter(s: &mut Cursive, filter: Filter) {
     let mut message_dir: RadioGroup<u8> = RadioGroup::new();
     let mut message_amount: RadioGroup<u8> = RadioGroup::new();
 
@@ -107,27 +149,33 @@ pub fn edit_filter(s: &mut Cursive, filter: Filter) {
                 }
                 s.pop_layer();
                 s.pop_layer();
-                view_messages(s, filter);
+                show_messages(s, filter);
             })
             .title("Filter setup"),
     );
 }
 
-pub fn view_messages(s: &mut Cursive, filter: Filter) {
+pub fn show_messages(s: &mut Cursive, mut filter: Filter) {
     let data = &mut s.user_data::<UserData>().unwrap();
-    let messages = &data.acc_messages;
+    let wallet = &data.wallets[data.wallet_idx];
+    let messages = &wallet.accounts[wallet.acc_idx].messages;
     if messages.is_err() {
         let err_msg = messages.as_ref().err().unwrap().clone();
         s.add_layer(Dialog::info(err_msg));
         return;
     } else if messages.as_ref().unwrap().is_empty() {
         s.add_layer(Dialog::info(
-            "You haven't sent or received any messages yet with dagchat!",
+            "You haven't sent or received any messages yet with dagchat on this account!",
         ));
         return;
     }
 
     let mut output = StyledString::new();
+    let mut search_term = String::from("");
+    if filter.search_term.is_some() {
+        search_term = filter.search_term.unwrap();
+    };
+
     for message in messages.as_ref().unwrap().iter().rev() {
         if (message.outgoing && !filter.outgoing)
             || (!message.outgoing && !filter.incoming)
@@ -136,6 +184,7 @@ pub fn view_messages(s: &mut Cursive, filter: Filter) {
         {
             continue;
         }
+
         let datetime: DateTime<Local> = DateTime::from(DateTime::<Utc>::from_utc(
             NaiveDateTime::from_timestamp(message.timestamp as i64, 0),
             Utc,
@@ -164,35 +213,68 @@ pub fn view_messages(s: &mut Cursive, filter: Filter) {
             format!("{}\n\n", message.amount),
             data.coin.colour,
         ));
-        output.append(message_info);
+
+        if !search_term.as_str().is_empty() {
+            if message_info.source().contains(&search_term) {
+                output.append(message_info);
+            }
+        } else {
+            output.append(message_info);
+        }
     }
-    s.add_layer(
-        Dialog::around(
-            LinearLayout::vertical()
-                .child(
-                    LinearLayout::horizontal()
-                        .child(Button::new("Filter", move |s| {
-                            edit_filter(s, filter.clone())
-                        }))
-                        .child(DummyView)
-                        .child(Button::new("Back", |s| go_back(s))),
-                )
+    if search_term.is_empty() {
+        filter.search_term = None;
+    } else {
+        filter.search_term = Some(search_term);
+    }
+
+    // Annoying reallocations due to having multiple closures
+    // requiring filter. Need to look into how to solve although
+    // minimal perfomance hit.
+    let search_filter = filter.clone();
+    let filter_copy = filter.clone();
+
+    let mut content = LinearLayout::vertical()
+        .child(
+            LinearLayout::horizontal()
+                .child(Button::new("Search", move |s| {
+                    show_search(s, search_filter.clone())
+                }))
                 .child(DummyView)
-                .child(
-                    TextView::new(output)
-                        .scrollable()
-                        .max_width(73)
-                        .max_height(10),
-                ),
+                .child(Button::new("Filter", move |s| {
+                    show_filter(s, filter_copy.clone())
+                }))
+                .child(DummyView)
+                .child(Button::new("Back", |s| go_back(s))),
         )
-        .title("Message history"),
+        .child(DummyView);
+    if filter.search_term.is_some() {
+        content.add_child(TextView::new(StyledString::styled(
+            format!("Contains: {}", filter.search_term.unwrap()),
+            OFF_WHITE,
+        )))
+    }
+    if output.is_empty() {
+        content.add_child(DummyView);
+        content.add_child(TextView::new(StyledString::styled(
+            "No messages found.",
+            data.coin.colour,
+        )));
+    }
+    content.add_child(
+        TextView::new(output)
+            .scrollable()
+            .max_width(77)
+            .max_height(12),
     );
+    s.add_layer(Dialog::around(content).title("Message history"));
 }
 
 pub fn load_messages(s: &mut Cursive) -> Result<Vec<SavedMessage>, String> {
     let data = &mut s.user_data::<UserData>().unwrap();
+    let wallet = &data.wallets[data.wallet_idx];
     let mut messages: Vec<SavedMessage> = vec![];
-    let lookup_key = match data.lookup.get(&data.accounts[data.acc_idx].address) {
+    let lookup_key = match data.lookup.get(&wallet.accounts[wallet.acc_idx].address) {
         Some(id) => id.to_owned(),
         None => create_key(s)?,
     };
@@ -235,16 +317,19 @@ pub fn load_messages(s: &mut Cursive) -> Result<Vec<SavedMessage>, String> {
 
 pub fn save_messages(s: &mut Cursive) -> Result<(), String> {
     let data = &mut s.user_data::<UserData>().unwrap();
+    let wallet = &data.wallets[data.wallet_idx];
     let data_dir = dirs::data_dir().unwrap();
     let messages_dir = data_dir.join(DATA_DIR_PATH).join(MESSAGES_DIR_PATH);
-    let address = &data.accounts[data.acc_idx].address;
+    let address = &wallet.accounts[wallet.acc_idx].address;
     let lookup_key = match data.lookup.get(address) {
         Some(id) => id.to_owned(),
         None => create_key(s)?,
     };
-    let data = &mut s.user_data::<UserData>().unwrap();
+    let data = &s.user_data::<UserData>().unwrap();
+    let wallet = &data.wallets[data.wallet_idx];
     let messages_file = messages_dir.join(format!("{}.dagchat", lookup_key));
-    let messages_bytes = bincode::serialize(data.acc_messages.as_ref().unwrap()).unwrap();
+    let messages_bytes =
+        bincode::serialize(wallet.accounts[wallet.acc_idx].messages.as_ref().unwrap()).unwrap();
     let encrypted_bytes = encrypt_bytes(&messages_bytes, &data.password);
     let write_res = fs::write(&messages_file, encrypted_bytes);
     if write_res.is_err() {
@@ -263,11 +348,11 @@ pub fn change_message_passwords(s: &mut Cursive, new_password: &str) -> Result<(
     let data_dir = dirs::data_dir().unwrap();
     let messages_dir = data_dir.join(DATA_DIR_PATH).join(MESSAGES_DIR_PATH);
 
-    for (a, lookup_key) in data.lookup.iter() {
+    for (_a, lookup_key) in data.lookup.iter() {
         let filename = format!("{}.dagchat", lookup_key);
         let messages_file = messages_dir.join(filename);
         if messages_file.exists() {
-            //eprintln!("Changing file password for {}", a);
+            //eprintln!("Changing file password for {}", _a);
             let mut error = String::from("");
             let encrypted_bytes = fs::read(&messages_file).unwrap_or_else(|e| {
                 error = format!(

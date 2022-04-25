@@ -8,7 +8,8 @@ pub fn show_message_info(s: &mut Cursive, _name: &str) {
         None => s.add_layer(Dialog::info("No receivable selected.")),
         Some(focus) => {
             let data = &mut s.user_data::<UserData>().unwrap();
-            let account = &mut data.accounts[data.acc_idx];
+            let wallet = &mut data.wallets[data.wallet_idx];
+            let account = &mut wallet.accounts[wallet.acc_idx];
             let receivable = &mut account.receivables[focus];
             let private_key = &account.private_key;
             let node_url = &data.coin.node_url;
@@ -84,7 +85,8 @@ pub fn load_receivables(s: &mut Cursive) {
 
     let data = &s.user_data::<UserData>().unwrap();
     let node_url = data.coin.node_url.clone();
-    let target_address = data.accounts[data.acc_idx].address.clone();
+    let wallet = &data.wallets[data.wallet_idx];
+    let target_address = wallet.accounts[wallet.acc_idx].address.clone();
     s.pop_layer();
     s.add_layer(Dialog::around(
         ProgressBar::new()
@@ -99,7 +101,8 @@ pub fn load_receivables(s: &mut Cursive) {
                 let receivables = find_incoming(&target_address, &node_url, &counter);
                 cb.send(Box::new(move |s| {
                     let data = &mut s.user_data::<UserData>().unwrap();
-                    let mut account = &mut data.accounts[data.acc_idx];
+                    let wallet = &mut data.wallets[data.wallet_idx];
+                    let account = &mut wallet.accounts[wallet.acc_idx];
                     account.receivables = receivables;
                     account.balance = balance;
                     show_inbox(s);
@@ -113,12 +116,14 @@ pub fn load_receivables(s: &mut Cursive) {
 
 fn process_receive(s: &mut Cursive, idx: usize) {
     let data = &s.user_data::<UserData>().unwrap();
-    let private_key = data.accounts[data.acc_idx].private_key;
-    let receivable = &data.accounts[data.acc_idx].receivables[idx];
+    let wallet = &data.wallets[data.wallet_idx];
+    let account = &wallet.accounts[wallet.acc_idx];
+    let private_key = account.private_key;
+    let receivable = &account.receivables[idx];
     let send_block_hash = receivable.hash.clone();
 
     let amount = receivable.amount;
-    let address = data.accounts[data.acc_idx].address.clone();
+    let address = account.address.clone();
     let prefix = data.coin.prefix.clone();
     let node_url = data.coin.node_url.clone();
     let ticks = 1000;
@@ -142,14 +147,16 @@ fn process_receive(s: &mut Cursive, idx: usize) {
                     select.remove_item(idx);
                     let mut balance = s.find_name::<TextView>("balance").unwrap();
                     let data = &mut s.user_data::<UserData>().unwrap();
-                    let receivable = &data.accounts[data.acc_idx].receivables[idx];
+                    let wallet = &mut data.wallets[data.wallet_idx];
+                    let account = &mut wallet.accounts[wallet.acc_idx];
+                    let receivable = &account.receivables[idx];
                     let send_block_hash = receivable.hash.clone();
                     let amount = receivable.amount;
                     let has_message = { receivable.message.is_some() };
 
                     let mut save_res = Ok(());
                     if has_message {
-                        data.acc_messages.as_mut().unwrap().push(SavedMessage {
+                        account.messages.as_mut().unwrap().push(SavedMessage {
                             outgoing: false,
                             address: receivable.source.clone(),
                             timestamp: match SystemTime::now()
@@ -170,7 +177,8 @@ fn process_receive(s: &mut Cursive, idx: usize) {
                         save_res = messages::save_messages(s);
                     }
                     let data = &mut s.user_data::<UserData>().unwrap();
-                    let account = &mut data.accounts[data.acc_idx];
+                    let wallet = &mut data.wallets[data.wallet_idx];
+                    let account = &mut wallet.accounts[wallet.acc_idx];
                     account.receivables.remove(idx);
                     account.balance += amount;
                     let bal = display_to_dp(

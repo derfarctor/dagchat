@@ -193,7 +193,7 @@ pub fn send_message(
     let sender_pub = ed25519_dalek::PublicKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
     );
-    let sender_address = get_address(sender_pub.as_bytes(), addr_prefix);
+    let sender_address = get_address(sender_pub.as_bytes(), Some(addr_prefix));
 
     // Set up the previous block hash and balance to start publishing blocks
     // Also note the representative from before sending, in order to change back afterwards
@@ -360,7 +360,7 @@ pub fn send(
     let sender_pub = ed25519_dalek::PublicKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
     );
-    let sender_address = get_address(sender_pub.as_bytes(), addr_prefix);
+    let sender_address = get_address(sender_pub.as_bytes(), Some(addr_prefix));
 
     // Safe because account must be opened to have got this far
     let account_info = get_account_info(&sender_address, node_url).unwrap();
@@ -647,9 +647,9 @@ pub fn get_signed_block(
     //let work = generate_work(&previous, "banano");
     let block = Block {
         type_name: String::from("state"),
-        account: get_address(public.as_bytes(), addr_prefix),
+        account: get_address(public.as_bytes(), Some(addr_prefix)),
         previous: hex::encode(previous),
-        representative: get_address(rep, addr_prefix),
+        representative: get_address(rep, Some(addr_prefix)),
         balance: balance.to_string(),
         link: hex::encode(link),
         signature: hex::encode(&signed_bytes),
@@ -747,14 +747,18 @@ pub fn get_private_key(seed_bytes: &[u8; 32], idx: u32) -> [u8; 32] {
     buf
 }
 
-pub fn get_address(pub_key_bytes: &[u8], prefix: &str) -> String {
+pub fn get_address(pub_key_bytes: &[u8], prefix: Option<&str>) -> String {
     let mut pub_key_vec = pub_key_bytes.to_vec();
     let mut h = [0u8; 3].to_vec();
     h.append(&mut pub_key_vec);
     let checksum = ADDR_ENCODING.encode(&compute_address_checksum(pub_key_bytes));
     let address = {
         let encoded_addr = ADDR_ENCODING.encode(&h);
-        let mut addr = String::from(prefix);
+
+        let mut addr = String::from("");
+        if prefix.is_some() {
+            addr = String::from(prefix.unwrap());
+        }
         addr.push_str(encoded_addr.get(4..).unwrap());
         addr.push_str(&checksum);
         addr
@@ -793,7 +797,7 @@ pub fn validate_address(addr: &str) -> bool {
 
     let pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes());
 
-    // Lazily catch decoding error - return false
+    // Catch decoding error - return false
     let mut pub_key_vec = match pub_key_vec {
         Ok(pub_key_vec) => pub_key_vec,
         Err(_) => return false,

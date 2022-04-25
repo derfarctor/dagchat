@@ -5,8 +5,8 @@ use cursive::theme::{BaseColor, BorderStyle, Color, PaletteColor, Theme};
 use cursive::traits::*;
 use cursive::utils::markup::StyledString;
 use cursive::views::{
-    Button, Dialog, DummyView, EditView, LinearLayout, ProgressBar, RadioGroup, SelectView,
-    TextArea, TextView,
+    Button, Dialog, DummyView, EditView, LinearLayout, OnEventView, ProgressBar, RadioGroup,
+    SelectView, TextArea, TextView,
 };
 use cursive::Cursive;
 use dirs;
@@ -17,14 +17,14 @@ use std::fs;
 use std::path::PathBuf;
 
 pub mod defaults;
-use defaults::{ACCOUNTS_PATH, DATA_DIR_PATH, MESSAGES_DIR_PATH, SHOW_TO_DP};
+use defaults::{DATA_DIR_PATH, MESSAGES_DIR_PATH, SHOW_TO_DP, WALLETS_PATH};
 // dagchat util
 mod dcutil;
 use dcutil::*;
 
-// dagchat accounts and messages util
-mod accounts;
+// dagchat wallets and messages util
 mod messages;
+mod wallets;
 use messages::SavedMessage;
 
 // send and receive with dagchat
@@ -33,9 +33,8 @@ mod send;
 
 pub struct UserData {
     pub password: String,
-    pub accounts: Vec<accounts::Account>,
-    pub acc_idx: usize,
-    pub acc_messages: Result<Vec<SavedMessage>, String>,
+    pub wallets: Vec<wallets::Wallet>,
+    pub wallet_idx: usize,
     pub lookup: HashMap<String, String>,
     pub coin: Coin,
     pub encrypted_bytes: Vec<u8>,
@@ -78,10 +77,9 @@ impl UserData {
     pub fn new() -> Self {
         UserData {
             password: String::from(""),
-            accounts: vec![],
-            acc_idx: 0,
+            wallets: vec![],
+            wallet_idx: 0,
             lookup: HashMap::new(),
-            acc_messages: Ok(vec![]),
             coin: Coin::nano(),
             encrypted_bytes: vec![],
         }
@@ -204,7 +202,7 @@ fn check_setup(s: &mut Cursive) {
                 return;
             }
         }
-        accounts::load_accounts(s, dagchat_dir);
+        wallets::load_wallets(s, dagchat_dir);
     } else {
         s.add_layer(Dialog::info(
             "Error locating the application data folder on your system.",
@@ -215,9 +213,11 @@ fn check_setup(s: &mut Cursive) {
 fn show_change_rep(s: &mut Cursive) {
     s.pop_layer();
     let data = &s.user_data::<UserData>().unwrap();
-    let private_key = data.accounts[data.acc_idx].private_key;
+    let wallet = &data.wallets[data.wallet_idx];
+    let account = &wallet.accounts[wallet.acc_idx];
+    let private_key = account.private_key;
     let coin = data.coin.clone();
-    let address = data.accounts[data.acc_idx].address.clone();
+    let address = account.address.clone();
     let sub_title_colour = get_subtitle_colour(s);
     s.add_layer(
         Dialog::around(
@@ -306,13 +306,14 @@ fn show_inbox(s: &mut Cursive) {
     s.set_autorefresh(false);
     s.pop_layer();
     let data: UserData = s.take_user_data().unwrap();
-    let address = data.accounts[data.acc_idx].address.clone();
+    let wallet = &data.wallets[data.wallet_idx];
+    let address = wallet.accounts[wallet.acc_idx].address.clone();
     let send_label = format!("Send {}", data.coin.name);
     let buttons = LinearLayout::vertical()
         .child(Button::new("Refresh", |s| receive::load_receivables(s)))
         .child(Button::new("Messages", |s| {
             let filter: messages::Filter = Default::default();
-            messages::view_messages(s, filter);
+            messages::show_messages(s, filter);
         }))
         .child(DummyView)
         .child(Button::new(send_label, |s| send::show_send(s, false)))
@@ -323,16 +324,16 @@ fn show_inbox(s: &mut Cursive) {
         }))
         .child(Button::new("Change rep", |s| show_change_rep(s)))
         .child(DummyView)
-        .child(Button::new("Back", |s| accounts::show_accounts(s)));
+        .child(Button::new("Back", |s| wallets::show_accounts(s)));
 
     let select = SelectView::<String>::new()
         .on_submit(receive::show_message_info)
         .with_name("select")
         .scrollable()
-        .max_height(6);
+        .fixed_height(5);
 
     let bal = display_to_dp(
-        data.accounts[data.acc_idx].balance,
+        wallet.accounts[wallet.acc_idx].balance,
         SHOW_TO_DP,
         &data.coin.multiplier,
         &data.coin.ticker,
@@ -361,7 +362,7 @@ fn show_inbox(s: &mut Cursive) {
         .title(format!("dagchat {}", VERSION)),
     );
 
-    for receivable in &data.accounts[data.acc_idx].receivables {
+    for receivable in &wallet.accounts[wallet.acc_idx].receivables {
         let mut tag;
         if receivable.amount == 1 && receivable.message.is_some() {
             tag = String::from("Message");
