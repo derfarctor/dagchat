@@ -43,7 +43,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
             LinearLayout::horizontal()
                 .child(Button::new("Paste", |s| {
                     s.call_on_name("address", |view: &mut TextArea| {
-                        let mut clipboard = ClipboardContext::new().unwrap();
+                        let mut clipboard: ClipboardContext = ClipboardProvider::new().unwrap();
                         let clip = clipboard
                             .get_contents()
                             .unwrap_or_else(|_| String::from("Failed to read clipboard."));
