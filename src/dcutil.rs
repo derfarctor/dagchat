@@ -1,10 +1,15 @@
+use aes_gcm::aead::{generic_array::GenericArray, Aead, NewAead};
+use aes_gcm::{Aes256Gcm, Nonce};
+use argon2::{self, Config};
 use bigdecimal::BigDecimal;
+use bitreader::BitReader;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
 use ecies_ed25519;
 use ed25519_dalek;
+use rand::RngCore;
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -12,8 +17,9 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::str;
 use std::str::FromStr;
+
 // Will do something dynamic with reps in future
-use crate::defaults;
+use crate::defaults::*;
 
 // Used to update progress bar in cursive app
 // Each counter has 1000 ticks
@@ -133,7 +139,6 @@ pub struct BlocksResponse {
     data: HashMap<String, BlockResponse>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BlocksInfoResponse {
     blocks: BlocksResponse,
@@ -165,7 +170,7 @@ pub fn send_message(
     node_url: &str,
     addr_prefix: &str,
     counter: &Counter,
-) {
+) -> String {
     let public_key_bytes = to_public_key(&target_address);
     let mut message = message.clone();
     let pad = (message.len() + 28) % 32;
@@ -174,13 +179,12 @@ pub fn send_message(
     }
     let public_key = ecies_ed25519::PublicKey::from_bytes(&public_key_bytes).unwrap();
     counter.tick(50);
-    //println!("Encrypting message for send: {}", message);
+
     let mut csprng = rand::thread_rng();
     let encrypted_bytes =
         ecies_ed25519::encrypt(&public_key, message.as_bytes(), &mut csprng).unwrap();
     let blocks_needed = ((60 + message.len()) / 32) + 1;
     counter.tick(50);
-    //println!("Blocks needed: {}", blocks_needed);
 
     let mut block_data = [0u8; 32];
     let mut first_block_hash = [0u8; 32];
@@ -189,7 +193,7 @@ pub fn send_message(
     let sender_pub = ed25519_dalek::PublicKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
     );
-    let sender_address = get_address(sender_pub.as_bytes(), addr_prefix);
+    let sender_address = get_address(sender_pub.as_bytes(), Some(addr_prefix));
 
     // Set up the previous block hash and balance to start publishing blocks
     // Also note the representative from before sending, in order to change back afterwards
@@ -217,7 +221,6 @@ pub fn send_message(
         } else {
             block_data.copy_from_slice(&encrypted_bytes[start..end]);
         }
-        //println!("Block data as addr: {:?}", get_address(&block_data, addr_prefix));
         let block_hash = get_block_hash(
             private_key_bytes,
             &block_data,
@@ -260,6 +263,7 @@ pub fn send_message(
         &addr_prefix,
     );
     publish_block(block, sub.clone(), node_url);
+    hex::encode(last_block_hash)
 }
 
 pub fn change_rep(
@@ -309,9 +313,9 @@ pub fn receive_block(
     if account_info_opt.is_none() {
         // OPEN BLOCK
         if addr_prefix == "nano_" {
-            representative = to_public_key(defaults::DEFAULT_REP_NANO);
+            representative = to_public_key(DEFAULT_REP_NANO);
         } else if addr_prefix == "ban_" {
-            representative = to_public_key(defaults::DEFAULT_REP_BANANO);
+            representative = to_public_key(DEFAULT_REP_BANANO);
         } else {
             panic!("Unknown network... no default rep to open account.");
         }
@@ -356,7 +360,7 @@ pub fn send(
     let sender_pub = ed25519_dalek::PublicKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
     );
-    let sender_address = get_address(sender_pub.as_bytes(), addr_prefix);
+    let sender_address = get_address(sender_pub.as_bytes(), Some(addr_prefix));
 
     // Safe because account must be opened to have got this far
     let account_info = get_account_info(&sender_address, node_url).unwrap();
@@ -488,7 +492,18 @@ pub fn get_blocks_info(hashes: Vec<String>, node_url: &str) -> BlocksInfoRespons
         include_not_found: true,
     };
     let body = serde_json::to_string(&request).unwrap();
+    //eprintln!("Body: {}", body);
     let response = post_node(body, node_url);
+
+    // Somewhat hacky way to catch this error. Would be better off implementing
+    // some proper serde deserialisation with untagged flag.
+    if response.contains("\"blocks\": \"\"") {
+        return BlocksInfoResponse {
+            blocks: BlocksResponse {
+                data: HashMap::new(),
+            },
+        };
+    }
     let blocks_info_response: BlocksInfoResponse = serde_json::from_str(&response).unwrap();
     blocks_info_response
 }
@@ -632,9 +647,9 @@ pub fn get_signed_block(
     //let work = generate_work(&previous, "banano");
     let block = Block {
         type_name: String::from("state"),
-        account: get_address(public.as_bytes(), addr_prefix),
+        account: get_address(public.as_bytes(), Some(addr_prefix)),
         previous: hex::encode(previous),
-        representative: get_address(rep, addr_prefix),
+        representative: get_address(rep, Some(addr_prefix)),
         balance: balance.to_string(),
         link: hex::encode(link),
         signature: hex::encode(&signed_bytes),
@@ -676,23 +691,74 @@ pub fn validate_mnemonic(mnemonic: &str) -> Option<[u8; 32]> {
     Some(entropy)
 }
 
-pub fn get_private_key(seed_bytes: &[u8; 32]) -> [u8; 32] {
+pub fn derive_key(password: &str, salt: &[u8]) -> Vec<u8> {
+    let config = Config::default();
+    let hash = argon2::hash_raw(password.as_bytes(), salt, &config).unwrap();
+    hash
+}
+
+pub fn decrypt_bytes(encrypted_bytes: &Vec<u8>, password: &str) -> Result<Vec<u8>, String> {
+    let salt = &encrypted_bytes[..SALT_LENGTH];
+
+    let key_bytes = derive_key(password, salt);
+    let key = GenericArray::from_slice(&key_bytes);
+
+    let aead = Aes256Gcm::new(&key);
+    let nonce = Nonce::from_slice(&encrypted_bytes[SALT_LENGTH..SALT_LENGTH + IV_LENGTH]);
+    let encrypted = &encrypted_bytes[SALT_LENGTH + IV_LENGTH..];
+    let decrypted = aead.decrypt(nonce, encrypted);
+    match decrypted {
+        Ok(decrypted) => {
+            return Ok(decrypted);
+        }
+        Err(e) => {
+            return Err(format!("Failed to decrypt bytes. Error: {}", e));
+        }
+    }
+}
+
+pub fn encrypt_bytes(bytes: &Vec<u8>, password: &str) -> Vec<u8> {
+    let mut csprng = rand::thread_rng();
+    let mut salt = [0u8; SALT_LENGTH];
+    csprng.fill_bytes(&mut salt);
+    let key_bytes = derive_key(password, &salt);
+    let key = GenericArray::from_slice(&key_bytes);
+
+    let aead = Aes256Gcm::new(key);
+
+    let mut nonce_bytes = [0u8; IV_LENGTH];
+    csprng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+
+    let ciphertext = aead.encrypt(nonce, &bytes[..]).unwrap();
+    let mut encrypted_bytes = Vec::with_capacity(SALT_LENGTH + IV_LENGTH + ciphertext.len());
+    encrypted_bytes.extend(salt);
+    encrypted_bytes.extend(nonce);
+    encrypted_bytes.extend(ciphertext);
+    encrypted_bytes
+}
+
+pub fn get_private_key(seed_bytes: &[u8; 32], idx: u32) -> [u8; 32] {
     let mut hasher = Blake2bVar::new(32).unwrap();
     let mut buf = [0u8; 32];
     hasher.update(seed_bytes);
-    hasher.update(&[0u8; 4]);
+    hasher.update(&idx.to_be_bytes());
     hasher.finalize_variable(&mut buf).unwrap();
     buf
 }
 
-pub fn get_address(pub_key_bytes: &[u8], prefix: &str) -> String {
+pub fn get_address(pub_key_bytes: &[u8], prefix: Option<&str>) -> String {
     let mut pub_key_vec = pub_key_bytes.to_vec();
     let mut h = [0u8; 3].to_vec();
     h.append(&mut pub_key_vec);
     let checksum = ADDR_ENCODING.encode(&compute_address_checksum(pub_key_bytes));
     let address = {
         let encoded_addr = ADDR_ENCODING.encode(&h);
-        let mut addr = String::from(prefix);
+
+        let mut addr = String::from("");
+        if prefix.is_some() {
+            addr = String::from(prefix.unwrap());
+        }
         addr.push_str(encoded_addr.get(4..).unwrap());
         addr.push_str(&checksum);
         addr
@@ -731,7 +797,7 @@ pub fn validate_address(addr: &str) -> bool {
 
     let pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes());
 
-    // Lazily catch decoding error - return false
+    // Catch decoding error - return false
     let mut pub_key_vec = match pub_key_vec {
         Ok(pub_key_vec) => pub_key_vec,
         Err(_) => return false,
@@ -747,6 +813,24 @@ pub fn validate_address(addr: &str) -> bool {
     } else {
         return false;
     }
+}
+
+pub fn seed_to_mnemonic(seed_bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    Digest::update(&mut hasher, seed_bytes);
+    let check = hasher.finalize();
+
+    let mut combined = Vec::from(seed_bytes);
+    combined.extend(&check);
+
+    let mut reader = BitReader::new(&combined);
+
+    let mut words: Vec<&str> = Vec::new();
+    for _ in 0..24 {
+        let n = reader.read_u16(11);
+        words.push(WORD_LIST[n.unwrap() as usize].as_ref());
+    }
+    words.join(" ")
 }
 
 fn compute_address_checksum(pub_key_bytes: &[u8]) -> [u8; 5] {
