@@ -58,9 +58,9 @@ pub fn show_search(s: &mut Cursive, filter: Filter) {
         .child(TextArea::new().with_name("search").max_width(66))
         .child(LinearLayout::horizontal().child(Button::new("Paste", |s| {
             s.call_on_name("search", |view: &mut TextArea| {
-                let mut clipboard = Clipboard::new().unwrap();
+                let mut clipboard = ClipboardContext::new().unwrap();
                 let clip = clipboard
-                    .get_text()
+                    .get_contents()
                     .unwrap_or_else(|_| String::from("Failed to read clipboard."));
                 view.set_content(clip);
             })

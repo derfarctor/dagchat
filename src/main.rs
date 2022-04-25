@@ -1,5 +1,5 @@
-use arboard::Clipboard;
 use bincode;
+use copypasta::{ClipboardContext, ClipboardProvider};
 use cursive::align::HAlign;
 use cursive::theme::{BaseColor, BorderStyle, Color, PaletteColor, Theme};
 use cursive::traits::*;
@@ -232,9 +232,9 @@ fn show_change_rep(s: &mut Cursive) {
                     LinearLayout::horizontal()
                         .child(Button::new("Paste", |s| {
                             s.call_on_name("address", |view: &mut TextArea| {
-                                let mut clipboard = Clipboard::new().unwrap();
+                                let mut clipboard = ClipboardContext::new().unwrap();
                                 let clip = clipboard
-                                    .get_text()
+                                    .get_contents()
                                     .unwrap_or_else(|_| String::from("Failed to read clipboard."));
                                 view.set_content(clip);
                             })
@@ -280,9 +280,9 @@ fn show_change_rep(s: &mut Cursive) {
 }
 
 fn copy_to_clip(s: &mut Cursive, string: String) {
-    let mut clipboard = Clipboard::new().unwrap();
+    let mut clipboard = ClipboardContext::new().unwrap();
     let data = &s.user_data::<UserData>().unwrap();
-    let copied = clipboard.set_text(string.clone());
+    let copied = clipboard.set_contents(string.clone());
     if copied.is_err() {
         s.add_layer(Dialog::info(StyledString::styled(
             "Error copying to clipboard.",

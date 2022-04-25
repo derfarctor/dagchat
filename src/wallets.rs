@@ -755,9 +755,9 @@ fn show_from_mnemonic(s: &mut Cursive, name: String) {
             })
             .button("Paste", |s| {
                 s.call_on_name("mnemonic", |view: &mut EditView| {
-                    let mut clipboard = Clipboard::new().unwrap();
+                    let mut clipboard = ClipboardContext::new().unwrap();
                     let clip = clipboard
-                        .get_text()
+                        .get_contents()
                         .unwrap_or_else(|_| String::from("Failed to read clipboard."));
                     view.set_content(clip);
                 })
@@ -820,9 +820,9 @@ fn from_seedorkey(s: &mut Cursive, seed_or_key: String, name: String) {
             })
             .button("Paste", |s| {
                 s.call_on_name("seedorkey", |view: &mut EditView| {
-                    let mut clipboard = Clipboard::new().unwrap();
+                    let mut clipboard = ClipboardContext::new().unwrap();
                     let clip = clipboard
-                        .get_text()
+                        .get_contents()
                         .unwrap_or_else(|_| String::from("Failed to read clipboard."));
                     view.set_content(clip);
                 })
