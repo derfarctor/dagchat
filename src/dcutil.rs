@@ -408,11 +408,14 @@ pub fn read_message(
         ecies_ed25519::SecretKey::from_bytes(&expanded_bytes.to_bytes()[0..32]).unwrap();
     let decrypted = ecies_ed25519::decrypt(&private_key, &encrypted_bytes);
     if decrypted.is_err() {
-        return String::from("Error decrypting message.");
+        return String::from("Error decrypting message: not sent using the dagchat protocol.");
     }
-    let plaintext = String::from_utf8(decrypted.unwrap()).unwrap();
-    //println!("{}", plaintext);
-    plaintext
+    let plaintext = String::from_utf8(decrypted.unwrap());
+    if plaintext.is_err() {
+        return String::from("Error decrypting message: format was not UTF-8.");
+    }
+    //println!("{}", plaintext.unwrap());
+    plaintext.unwrap()
 }
 
 pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) -> Vec<Receivable> {

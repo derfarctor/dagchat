@@ -2,7 +2,7 @@
 
 An open source wallet with end-to-end encrypted, on chain messaging for nano and banano using the dagchat protocol.
 
-This application is not yet released. Any versions are test versions and come with no guarantees. Whilst messages are in theory encrypted end-to-end, the encrypted data is being put onto a public blockchain. The cryptography used in the dagchat protocol (and implementation of) has not been audited so it is advised not to include sensitive data within messages. 
+This application is not yet released, and thus here are no guarantees when it comes to the cryptographic security of wallets saved or messages sent with dagchat. Every care has been taken to ensure safety within the on-device wallet encryption, and the on-chain end to end encrypted messaging implementations, but this repository has not undergone a professional audit of any kind.
 
 # Features
 - Import multiple wallets using a mnemonic phrase, hex seed, or even private key. Each wallet supports many accounts which can be shown procedurally or by specifying an index. <br>![image](https://user-images.githubusercontent.com/97409490/165167183-11114b67-71e3-4fcd-85a6-a2a4ff6a0f1e.png) ![image](https://user-images.githubusercontent.com/97409490/165167265-30516a86-5c99-448f-930a-b3ccd1d4bd08.png)
