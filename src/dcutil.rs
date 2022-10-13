@@ -429,12 +429,16 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
     let response = post_node(body, node_url);
     counter.tick(200);
 
-    // Response from node if there are no receivable blocks
-    if response.contains("\"blocks\": \"\"") {
-        return vec![];
-    }
+    //eprintln!("{}", &response);
+    
+    let receivables: Result<ReceivableResponse, _> = serde_json::from_str(&response);
+    let receivables = match receivables {
+        Ok(receivables) => receivables,
+        // If deserialisation failed, either there were no blocks
+        // Or an different error was encountered.
+        Err(_) => return vec![],
+    };
 
-    let receivables: ReceivableResponse = serde_json::from_str(&response).unwrap();
     let receivable_blocks = receivables.blocks.data;
     let mut head_hashes: Vec<String> = vec![];
     for block in &receivable_blocks {
@@ -498,16 +502,18 @@ pub fn get_blocks_info(hashes: Vec<String>, node_url: &str) -> BlocksInfoRespons
     //eprintln!("Body: {}", body);
     let response = post_node(body, node_url);
 
-    // Somewhat hacky way to catch this error. Would be better off implementing
-    // some proper serde deserialisation with untagged flag.
-    if response.contains("\"blocks\": \"\"") {
-        return BlocksInfoResponse {
+    let blocks_info_response: Result<BlocksInfoResponse, _> = serde_json::from_str(&response);
+    let blocks_info_response = match blocks_info_response {
+        Ok(blocks_info_response) => blocks_info_response,
+        // If deserialisation failed, either there were no blocks
+        // Or an different error was encountered.
+        Err(_) => return BlocksInfoResponse {
             blocks: BlocksResponse {
                 data: HashMap::new(),
             },
-        };
-    }
-    let blocks_info_response: BlocksInfoResponse = serde_json::from_str(&response).unwrap();
+        },
+    };
+
     blocks_info_response
 }
 
