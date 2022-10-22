@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 ecies-ed25519 = "0.5.1"
 ed25519-dalek = { version = "1.0.1"  , package = "ed25519-dalek-blake2-feeless"}
-cursive = { version = "0.17.0", default-features = false, features = ["crossterm-backend"] }
+cursive = { version = "0.20.0", default-features = false, features = ["crossterm-backend"] }
 cursive_buffered_backend = "0.6.0"
 dirs = "4.0.0"
 rust-argon2 = "1.0.0"
