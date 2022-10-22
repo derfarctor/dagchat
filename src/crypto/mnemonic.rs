@@ -60,10 +60,10 @@ pub fn wordlist_position(word: &str) -> u16 {
 
 pub fn get_num_equivalent(mnemonic: &str) -> ([u16; 24], bool) {
     let mut num_mnemonic: [u16; 24] = [0u16; 24];
-    let words: Vec<&str> = mnemonic.split(" ").collect();
+    let words: Vec<&str> = mnemonic.split(' ').collect();
     for i in 0..24 {
         if WORD_LIST.contains(&words[i]) {
-            num_mnemonic[i] = wordlist_position(&words[i]);
+            num_mnemonic[i] = wordlist_position(words[i]);
         } else {
             return (num_mnemonic, false);
         }

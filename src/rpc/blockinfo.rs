@@ -51,7 +51,7 @@ pub fn get_blocks_info(hashes: Vec<String>, node_url: &str) -> BlocksInfoRespons
     let request = BlocksRequest {
         action: String::from("blocks_info"),
         json_block: true,
-        hashes: hashes,
+        hashes,
         include_not_found: true,
     };
     let body = serde_json::to_string(&request).unwrap();
@@ -59,18 +59,14 @@ pub fn get_blocks_info(hashes: Vec<String>, node_url: &str) -> BlocksInfoRespons
     let response = post_node(body, node_url);
 
     let blocks_info_response: Result<BlocksInfoResponse, _> = serde_json::from_str(&response);
-    let blocks_info_response = match blocks_info_response {
+    match blocks_info_response {
         Ok(blocks_info_response) => blocks_info_response,
         // If deserialisation failed, either there were no blocks
         // Or an different error was encountered.
-        Err(_) => {
-            return BlocksInfoResponse {
-                blocks: BlocksResponse {
-                    data: HashMap::new(),
-                },
-            }
-        }
-    };
-
-    blocks_info_response
+        Err(_) => BlocksInfoResponse {
+            blocks: BlocksResponse {
+                data: HashMap::new(),
+            },
+        },
+    }
 }

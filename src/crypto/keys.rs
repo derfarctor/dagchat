@@ -12,9 +12,8 @@ pub fn get_private_key(seed_bytes: &[u8; 32], idx: u32) -> [u8; 32] {
 }
 
 pub fn to_public_key(addr: &str) -> [u8; 32] {
-    let mut encoded_addr: String;
-    let parts: Vec<&str> = addr.split("_").collect();
-    encoded_addr = String::from(parts[1].get(0..52).unwrap());
+    let parts: Vec<&str> = addr.split('_').collect();
+    let mut encoded_addr = String::from(parts[1].get(0..52).unwrap());
     encoded_addr.insert_str(0, "1111");
     let mut pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes()).unwrap();
     pub_key_vec.drain(0..3);

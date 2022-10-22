@@ -24,16 +24,15 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
 
     if balance == 0 {
         let address = account.address.clone();
-        let no_balance_message;
-        if with_message {
-            no_balance_message = String::from("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. One faucet claim will last you a lifetime.");
+        let no_balance_message = if with_message {
+            String::from("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. One faucet claim will last you a lifetime.")
         } else {
-            no_balance_message = format!("You don't have any {} in your wallet to send.", coin);
-        }
+            format!("You don't have any {} in your wallet to send.", coin)
+        };
         s.add_layer(
             Dialog::around(TextView::new(no_balance_message))
                 .h_align(HAlign::Center)
-                .button("Back", |s| show_inbox(s))
+                .button("Back", show_inbox)
                 .button("Copy Address", move |s| copy_to_clip(s, address.clone()))
                 .max_width(75),
         );
@@ -111,13 +110,11 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                 })
                 .unwrap();
                 if address.is_empty() {
-                    let content;
-                    if with_message {
-                        content =
-                            String::from("You must provide an address to send the message to!");
+                    let content = if with_message {
+                        String::from("You must provide an address to send the message to!")
                     } else {
-                        content = format!("You must provide an address to send {} to!", coin);
-                    }
+                        format!("You must provide an address to send {} to!", coin)
+                    };
                     s.add_layer(Dialog::info(content));
                     return;
                 }
@@ -133,12 +130,11 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                 if !amount.is_empty() {
                     let raw_opt = whole_to_raw(amount, &multiplier);
                     if raw_opt.is_none() {
-                        let content;
-                        if with_message {
-                            content = "The optional amount was invalid.";
+                        let content = if with_message {
+                            "The optional amount was invalid."
                         } else {
-                            content = "The amount was invalid.";
-                        }
+                            "The amount was invalid."
+                        };
                         s.add_layer(Dialog::info(content));
                         return;
                     }
@@ -158,19 +154,17 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                             return;
                         }
                     }
-                } else {
-                    if message.is_empty() {
-                        // The user supplied no amount and it's not a message
-                        s.add_layer(Dialog::info(format!(
-                            "You must provide an amount of {} to send!",
-                            coin
-                        )));
-                        return;
-                    }
+                } else if message.is_empty() {
+                    // The user supplied no amount and it's not a message
+                    s.add_layer(Dialog::info(format!(
+                        "You must provide an amount of {} to send!",
+                        coin
+                    )));
+                    return;
                 }
                 process_send(s, raw, address, message);
             }))
-            .child(Button::new("Back", |s| show_inbox(s))),
+            .child(Button::new("Back", show_inbox)),
     );
     s.add_layer(
         Dialog::around(form_content)

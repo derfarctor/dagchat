@@ -83,7 +83,7 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                         process_receive(s, focus);
                     })
                     .button("Copy address", move |s| copy_to_clip(s, sender.clone()))
-                    .button("Back", |s| go_back(s))
+                    .button("Back", go_back)
                     .title(title),
             );
         }

@@ -7,16 +7,13 @@ pub fn backup_wallet(s: &mut Cursive) {
         .find_name::<OnEventView<SelectView<String>>>("wallets")
         .unwrap();
     let select = eventview.get_inner();
-    let selected_idx;
-    match select.selected_id() {
+    let selected_idx = match select.selected_id() {
         None => {
             s.add_layer(Dialog::info("No wallet selected."));
             return;
         }
-        Some(focus) => {
-            selected_idx = focus;
-        }
-    }
+        Some(focus) => focus,
+    };
     let data = &mut s.user_data::<UserData>().unwrap();
     let wallet = &data.wallets[selected_idx];
     let mut content = Dialog::around(LinearLayout::vertical().child(DummyView).child(
@@ -27,7 +24,7 @@ pub fn backup_wallet(s: &mut Cursive) {
     ))
     .h_align(HAlign::Center)
     .title("Backup wallet");
-    if &wallet.mnemonic != "" {
+    if !wallet.mnemonic.is_empty() {
         let mnemonic = wallet.mnemonic.clone();
         content.add_button("Mnemonic", move |s| {
             let mnemonic = mnemonic.clone();
@@ -43,7 +40,7 @@ pub fn backup_wallet(s: &mut Cursive) {
                     s.pop_layer();
                     copy_to_clip(s, mnemonic.clone())
                 })
-                .button("Back", |s| go_back(s))
+                .button("Back", go_back)
                 .title("Mnemonic")
                 .max_width(80),
             );
@@ -63,7 +60,7 @@ pub fn backup_wallet(s: &mut Cursive) {
                     s.pop_layer();
                     copy_to_clip(s, seed.clone())
                 })
-                .button("Back", |s| go_back(s))
+                .button("Back", go_back)
                 .title("Seed"),
             );
         });
@@ -83,12 +80,12 @@ pub fn backup_wallet(s: &mut Cursive) {
                     s.pop_layer();
                     copy_to_clip(s, private_key.clone())
                 })
-                .button("Back", |s| go_back(s))
+                .button("Back", go_back)
                 .title("Private key"),
             );
         });
     }
-    content.add_button("Back", |s| go_back(s));
+    content.add_button("Back", go_back);
 
     s.add_layer(content.max_width(80));
 }

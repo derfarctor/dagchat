@@ -34,25 +34,26 @@ fn process_idx(s: &mut Cursive, idx: &str) {
     let prefix = &data.coin.prefix.clone();
     let wallet = &data.wallets[data.wallet_idx];
     let index_res: Result<u32, _> = idx.parse();
-    if index_res.is_err() {
+
+    if let Ok(index) = index_res {
+        if wallet.indexes.contains(&index) {
+            s.add_layer(Dialog::info("This account has already been added!"));
+        } else {
+            add_account(s, Some(index_res.unwrap()), prefix);
+            let save_res = save_wallets(s);
+            s.pop_layer();
+            s.pop_layer();
+            show_accounts(s);
+            if save_res.is_err() {
+                s.add_layer(
+                    Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
+                        .title("Error saving wallets data"),
+                );
+            }
+        }
+    } else {
         s.add_layer(Dialog::info(
             "Error: index was not an integer within the valid range.",
         ));
-        return;
-    } else if wallet.indexes.contains(index_res.as_ref().unwrap()) {
-        s.add_layer(Dialog::info("This account has already been added!"));
-        return;
-    } else {
-        add_account(s, Some(index_res.unwrap()), prefix);
-        let save_res = save_wallets(s);
-        s.pop_layer();
-        s.pop_layer();
-        show_accounts(s);
-        if save_res.is_err() {
-            s.add_layer(
-                Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
-                    .title("Error saving wallets data"),
-            );
-        }
     }
 }

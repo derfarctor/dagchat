@@ -97,7 +97,7 @@ pub fn show_messages(s: &mut Cursive, mut filter: Filter) {
                     show_filter(s, filter_copy.clone())
                 }))
                 .child(DummyView)
-                .child(Button::new("Back", |s| go_back(s))),
+                .child(Button::new("Back", go_back)),
         )
         .child(DummyView);
     if filter.search_term.is_some() {

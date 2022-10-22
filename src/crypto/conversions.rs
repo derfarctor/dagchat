@@ -10,7 +10,7 @@ pub fn get_32_bytes(string: &str) -> [u8; 32] {
 
 // Also validates if the amount submitted was possible
 pub fn whole_to_raw(whole: String, multiplier: &str) -> Option<u128> {
-    let amount = BigDecimal::from_str(&whole.trim());
+    let amount = BigDecimal::from_str(whole.trim());
     if amount.is_err() {
         return None;
     }
@@ -20,12 +20,12 @@ pub fn whole_to_raw(whole: String, multiplier: &str) -> Option<u128> {
         let raw_string = amount_raw.with_scale(0).to_string();
         let raw: u128 = raw_string.parse().unwrap();
         if raw == 0 {
-            return None;
+            None
         } else {
-            return Some(raw);
+            Some(raw)
         }
     } else {
-        return None;
+        None
     }
 }
 
@@ -40,8 +40,8 @@ pub fn display_to_dp(raw: u128, dp: usize, multiplier: &str, ticker: &str) -> St
         let mut s = adjusted.to_string();
 
         // If decimal part, trim to dp
-        if s.contains(".") {
-            let mut parts: Vec<&str> = s.split(".").collect();
+        if s.contains('.') {
+            let mut parts: Vec<&str> = s.split('.').collect();
             let real_dp = parts[1].len();
             if real_dp > dp {
                 parts[1] = parts[1].get(0..dp).unwrap();
@@ -50,7 +50,6 @@ pub fn display_to_dp(raw: u128, dp: usize, multiplier: &str, ticker: &str) -> St
         } else {
             s = format!("{}{}", s, ticker);
         }
-
-        return s;
+        s
     }
 }

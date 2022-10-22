@@ -56,11 +56,9 @@ fn get_nano_theme(mut base: Theme, v: bool) -> Theme {
 
 pub fn get_subtitle_colour(s: &mut Cursive) -> Color {
     let data = &s.user_data::<UserData>().unwrap();
-    let sub_title_colour;
     if data.coin.colour == YELLOW {
-        sub_title_colour = OFF_WHITE;
+        OFF_WHITE
     } else {
-        sub_title_colour = data.coin.colour;
+        data.coin.colour
     }
-    sub_title_colour
 }

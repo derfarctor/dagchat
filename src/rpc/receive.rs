@@ -111,7 +111,7 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
             hash: receivable.0,
             amount: receivable.1.amount.parse().unwrap(),
             source: receivable.1.source,
-            message: message,
+            message,
         });
         counter.tick(x);
     }
@@ -133,7 +133,13 @@ pub fn receive_block(
     let mut new_balance = amount;
     let representative: [u8; 32];
     let link = get_32_bytes(send_block);
-    if account_info_opt.is_none() {
+
+    if let Some(account_info) = account_info_opt {
+        last_block_hash = get_32_bytes(&account_info.frontier);
+        let balance = get_balance(&account_info);
+        new_balance = balance + amount;
+        representative = to_public_key(&account_info.representative);
+    } else {
         // OPEN BLOCK
         if addr_prefix == "nano_" {
             representative = to_public_key(DEFAULT_REP_NANO);
@@ -142,13 +148,8 @@ pub fn receive_block(
         } else {
             panic!("Unknown network... no default rep to open account.");
         }
-    } else {
-        let account_info = account_info_opt.unwrap();
-        last_block_hash = get_32_bytes(&account_info.frontier);
-        let balance = get_balance(&account_info);
-        new_balance = balance + amount;
-        representative = to_public_key(&account_info.representative);
     }
+
     counter.tick(200);
     let block_hash = get_block_hash(
         private_key_bytes,

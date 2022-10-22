@@ -15,14 +15,12 @@ pub fn add_account(s: &mut Cursive, index: Option<u32>, prefix: &str) {
                 .insert(0, Account::with_index(wallet, index, prefix));
             return;
         }
-    } else {
-        if last != 0 {
-            wallet.indexes.insert(0, 0);
-            wallet
-                .accounts
-                .insert(0, Account::with_index(wallet, 0, prefix));
-            return;
-        }
+    } else if last != 0 {
+        wallet.indexes.insert(0, 0);
+        wallet
+            .accounts
+            .insert(0, Account::with_index(wallet, 0, prefix));
+        return;
     }
     for idx in wallet.indexes[1..].iter() {
         if *idx != last + 1 {
@@ -31,15 +29,16 @@ pub fn add_account(s: &mut Cursive, index: Option<u32>, prefix: &str) {
         i += 1;
         last = wallet.indexes[i]
     }
-    if index.is_none() {
+
+    if let Some(index) = index {
+        wallet.indexes.push(index);
+        wallet
+            .accounts
+            .push(Account::with_index(wallet, index, prefix));
+    } else {
         wallet.indexes.insert(i + 1, last + 1);
         wallet
             .accounts
             .insert(i + 1, Account::with_index(wallet, last + 1, prefix));
-    } else {
-        wallet.indexes.push(index.unwrap());
-        wallet
-            .accounts
-            .push(Account::with_index(wallet, index.unwrap(), prefix));
     }
 }

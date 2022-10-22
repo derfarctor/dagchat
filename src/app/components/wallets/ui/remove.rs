@@ -33,7 +33,7 @@ pub fn remove_wallet(s: &mut Cursive) {
         .button("Back", |s| {
             s.pop_layer();
         })
-        .button("Backup", |s| backup_wallet(s))
+        .button("Backup", backup_wallet)
         .button("Confirm", move |s| {
             let data = &mut s.user_data::<UserData>().unwrap();
             let wallet = &data.wallets[focus];

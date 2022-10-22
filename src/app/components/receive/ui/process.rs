@@ -66,7 +66,7 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
                                 &data.coin.multiplier,
                                 &data.coin.ticker,
                             ),
-                            hash: send_block_hash.clone(),
+                            hash: send_block_hash,
                             plaintext: receivable.message.as_ref().unwrap().plaintext.clone(),
                         });
                         save_res = save_messages(s);

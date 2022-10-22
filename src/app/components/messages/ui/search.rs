@@ -35,7 +35,7 @@ pub fn show_search(s: &mut Cursive, filter: Filter) {
                 s.pop_layer();
                 show_messages(s, filter);
             })
-            .button("Back", |s| go_back(s))
+            .button("Back", go_back)
             .title("Search"),
     )
 }

@@ -56,15 +56,20 @@ pub fn load_wallets(s: &mut Cursive, data_path: PathBuf) {
 
 fn load_with_password(s: &mut Cursive, password: &str) {
     let data = &mut s.user_data::<UserData>().unwrap();
-    let bytes = decrypt_bytes(&data.encrypted_bytes, &password);
+    let bytes = decrypt_bytes(&data.encrypted_bytes, password);
     if bytes.is_err() {
         s.add_layer(Dialog::info("Password was incorrect."));
         return;
     }
     data.password = password.to_string();
 
-    let wallets_and_lookup_res = bincode::deserialize(&bytes.unwrap()[..]);
-    if wallets_and_lookup_res.is_err() {
+    let wallets_and_lookup_res: Result<WalletsAndLookup, _> =
+        bincode::deserialize(&bytes.unwrap()[..]);
+    if let Ok(wallets_and_lookup) = wallets_and_lookup_res {
+        data.wallets = bincode::deserialize(&wallets_and_lookup.wallets_bytes).unwrap();
+        data.lookup = bincode::deserialize(&wallets_and_lookup.lookup_bytes).unwrap();
+        show_wallets(s);
+    } else {
         show_wallets(s);
         s.add_layer(Dialog::info(StyledString::styled(
             format!(
@@ -73,10 +78,5 @@ fn load_with_password(s: &mut Cursive, password: &str) {
             ),
             RED,
         )));
-    } else {
-        let wallets_and_lookup: WalletsAndLookup = wallets_and_lookup_res.unwrap();
-        data.wallets = bincode::deserialize(&wallets_and_lookup.wallets_bytes).unwrap();
-        data.lookup = bincode::deserialize(&wallets_and_lookup.lookup_bytes).unwrap();
-        show_wallets(s);
     }
 }

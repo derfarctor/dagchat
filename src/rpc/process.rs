@@ -41,10 +41,9 @@ pub fn publish_block(block: Block, sub: String, node_url: &str) -> String {
         json_block: String::from("true"),
         do_work: true,
         subtype: sub,
-        block: block,
+        block,
     };
 
     let body = serde_json::to_string(&request).unwrap();
-    let response = post_node(body, node_url);
-    response
+    post_node(body, node_url)
 }

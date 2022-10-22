@@ -24,7 +24,7 @@ pub fn show_inbox(s: &mut Cursive) {
     let address = wallet.accounts[wallet.acc_idx].address.clone();
     let send_label = format!("Send {}", data.coin.name);
     let buttons = LinearLayout::vertical()
-        .child(Button::new("Refresh", |s| load_receivables(s)))
+        .child(Button::new("Refresh", load_receivables))
         .child(Button::new("Messages", |s| {
             let filter: Filter = Default::default();
             show_messages(s, filter);
@@ -36,9 +36,9 @@ pub fn show_inbox(s: &mut Cursive) {
         .child(Button::new("Copy address", move |s| {
             copy_to_clip(s, address.clone())
         }))
-        .child(Button::new("Change rep", |s| show_change_rep(s)))
+        .child(Button::new("Change rep", show_change_rep))
         .child(DummyView)
-        .child(Button::new("Back", |s| show_accounts(s)));
+        .child(Button::new("Back", show_accounts));
 
     let select = SelectView::<String>::new()
         .on_submit(show_receivable)

@@ -31,7 +31,7 @@ pub fn show_accounts(s: &mut Cursive) {
             }
         }));
         buttons.add_child(DummyView);
-        buttons.add_child(Button::new("Show index", |s| add_index(s)));
+        buttons.add_child(Button::new("Show index", add_index));
         buttons.add_child(DummyView);
         buttons.add_child(Button::new("Hide", |s| {
             let data = &mut s.user_data::<UserData>().unwrap();

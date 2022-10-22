@@ -32,8 +32,7 @@ pub fn copy_to_clip(s: &mut Cursive, string: String) {
 
 pub fn paste_clip() -> String {
     let mut clipboard: Clipboard = Clipboard::new().unwrap();
-    let clip = clipboard
+    clipboard
         .get_text()
-        .unwrap_or_else(|_| String::from("Failed to read clipboard."));
-    clip
+        .unwrap_or_else(|_| String::from("Failed to read clipboard."))
 }

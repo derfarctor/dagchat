@@ -8,16 +8,15 @@ pub fn send_message(
     private_key_bytes: &[u8; 32],
     target_address: String,
     raw: u128,
-    message: String,
+    mut message: String,
     node_url: &str,
     addr_prefix: &str,
     counter: &Counter,
 ) -> String {
     let public_key_bytes = to_public_key(&target_address);
-    let mut message = message.clone();
     let pad = (message.len() + 28) % 32;
     for _ in 0..(32 - pad) {
-        message.push_str(" ");
+        message.push(' ');
     }
     let public_key = ecies_ed25519::PublicKey::from_bytes(&public_key_bytes).unwrap();
     counter.tick(50);
@@ -102,8 +101,8 @@ pub fn send_message(
         &link,
         balance,
         &block_hash,
-        &addr_prefix,
+        addr_prefix,
     );
-    publish_block(block, sub.clone(), node_url);
+    publish_block(block, sub, node_url);
     hex::encode(last_block_hash)
 }

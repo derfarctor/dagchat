@@ -46,7 +46,7 @@ pub fn add_wallet(s: &mut Cursive) {
                 let name = get_name(s);
                 from_seedorkey(s, String::from("private key"), name);
             })
-            .button("Back", |s| show_wallets(s))
+            .button("Back", show_wallets)
             .title("Import wallet"),
     );
 }
@@ -79,14 +79,12 @@ fn show_from_mnemonic(s: &mut Cursive, name: String) {
                 })
                 .unwrap();
             })
-            .button("Back", |s| {
-                show_wallets(s);
-            }),
+            .button("Back", show_wallets),
     );
 }
 
 fn process_from_mnemonic(s: &mut Cursive, mnemonic: &str, name: String) {
-    let seed = validate_mnemonic(&mnemonic);
+    let seed = validate_mnemonic(mnemonic);
     let content;
     s.pop_layer();
     if !mnemonic.is_empty() && seed.is_some() {
@@ -102,7 +100,6 @@ fn process_from_mnemonic(s: &mut Cursive, mnemonic: &str, name: String) {
             Dialog::around(TextView::new(content))
                 .button("Back", move |s| show_from_mnemonic(s, name.clone())),
         );
-        return;
     }
 }
 
@@ -140,13 +137,11 @@ fn from_seedorkey(s: &mut Cursive, seed_or_key: String, name: String) {
                 })
                 .unwrap();
             })
-            .button("Back", |s| {
-                show_wallets(s);
-            }),
+            .button("Back", show_wallets),
     );
 }
 
-fn process_from_seedorkey(s: &mut Cursive, sork_raw: String, seed_or_key: &String, name: String) {
+fn process_from_seedorkey(s: &mut Cursive, sork_raw: String, seed_or_key: &str, name: String) {
     let sork_val = sork_raw.trim();
     if sork_val.len() != 64 {
         s.add_layer(Dialog::info(format!(
@@ -166,13 +161,12 @@ fn process_from_seedorkey(s: &mut Cursive, sork_raw: String, seed_or_key: &Strin
     let bytes = bytes_opt.unwrap();
     let sork_bytes: [u8; 32] = bytes.try_into().unwrap();
     let data = &s.user_data::<UserData>().unwrap();
-    let wallet: Wallet;
-    if seed_or_key == "seed" {
+    let wallet = if seed_or_key == "seed" {
         let mnemonic = seed_to_mnemonic(&sork_bytes);
-        wallet = Wallet::new(mnemonic, sork_bytes, name, &data.coin.prefix);
+        Wallet::new(mnemonic, sork_bytes, name, &data.coin.prefix)
     } else {
-        wallet = Wallet::new_key(sork_bytes, name, &data.coin.prefix);
-    }
+        Wallet::new_key(sork_bytes, name, &data.coin.prefix)
+    };
     let content = format!("Successfully imported wallet from {}.", seed_or_key);
     setup_wallet(s, wallet, move |s| import_success(s, &content));
 }
@@ -249,7 +243,7 @@ where
 fn import_success(s: &mut Cursive, content: &str) {
     s.add_layer(
         Dialog::around(TextView::new(content).max_width(80))
-            .button("Load", |s| load_current_account(s))
+            .button("Load", load_current_account)
             .button("Back", |s| {
                 s.pop_layer();
                 show_wallets(s);
@@ -267,8 +261,8 @@ fn create_success(s: &mut Cursive, mnemonic: String, seed: String) {
     s.add_layer(
         Dialog::around(TextView::new(content).max_width(80))
             .h_align(HAlign::Center)
-            .button("Load", |s| load_current_account(s))
-            .button("Back", |s| show_wallets(s))
+            .button("Load", load_current_account)
+            .button("Back", show_wallets)
             .button("Copy mnemonic", move |s| copy_to_clip(s, mnemonic.clone()))
             .button("Copy seed", move |s| copy_to_clip(s, seed.clone()))
             .title("Successfully generated new wallet")

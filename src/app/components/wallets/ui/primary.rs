@@ -15,11 +15,11 @@ pub fn show_wallets(s: &mut Cursive) {
     s.pop_layer();
     // Need to add change password button
     let buttons = LinearLayout::vertical()
-        .child(Button::new("Import", |s| add_wallet(s)))
-        .child(Button::new("Create", |s| new_wallet_name(s)))
+        .child(Button::new("Import", add_wallet))
+        .child(Button::new("Create", new_wallet_name))
         .child(DummyView)
-        .child(Button::new("Backup", |s| backup_wallet(s)))
-        .child(Button::new("Delete", |s| remove_wallet(s)))
+        .child(Button::new("Backup", backup_wallet))
+        .child(Button::new("Delete", remove_wallet))
         .child(DummyView)
         .child(Button::new("Back", |s| {
             s.pop_layer();

@@ -11,27 +11,23 @@ pub fn derive_key(password: &str, salt: &[u8]) -> Vec<u8> {
     hash
 }
 
-pub fn decrypt_bytes(encrypted_bytes: &Vec<u8>, password: &str) -> Result<Vec<u8>, String> {
+pub fn decrypt_bytes(encrypted_bytes: &[u8], password: &str) -> Result<Vec<u8>, String> {
     let salt = &encrypted_bytes[..SALT_LENGTH];
 
     let key_bytes = derive_key(password, salt);
     let key = GenericArray::from_slice(&key_bytes);
 
-    let aead = Aes256Gcm::new(&key);
+    let aead = Aes256Gcm::new(key);
     let nonce = Nonce::from_slice(&encrypted_bytes[SALT_LENGTH..SALT_LENGTH + IV_LENGTH]);
     let encrypted = &encrypted_bytes[SALT_LENGTH + IV_LENGTH..];
     let decrypted = aead.decrypt(nonce, encrypted);
     match decrypted {
-        Ok(decrypted) => {
-            return Ok(decrypted);
-        }
-        Err(e) => {
-            return Err(format!("Failed to decrypt bytes. Error: {}", e));
-        }
+        Ok(decrypted) => Ok(decrypted),
+        Err(e) => Err(format!("Failed to decrypt bytes. Error: {}", e)),
     }
 }
 
-pub fn encrypt_bytes(bytes: &Vec<u8>, password: &str) -> Vec<u8> {
+pub fn encrypt_bytes(bytes: &[u8], password: &str) -> Vec<u8> {
     let mut csprng = rand::thread_rng();
     let mut salt = [0u8; SALT_LENGTH];
     csprng.fill_bytes(&mut salt);
@@ -44,7 +40,7 @@ pub fn encrypt_bytes(bytes: &Vec<u8>, password: &str) -> Vec<u8> {
     csprng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
 
-    let ciphertext = aead.encrypt(nonce, &bytes[..]).unwrap();
+    let ciphertext = aead.encrypt(nonce, bytes).unwrap();
     let mut encrypted_bytes = Vec::with_capacity(SALT_LENGTH + IV_LENGTH + ciphertext.len());
     encrypted_bytes.extend(salt);
     encrypted_bytes.extend(nonce);

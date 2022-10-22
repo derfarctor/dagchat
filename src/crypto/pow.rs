@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use rand::RngCore;
@@ -25,7 +26,7 @@ pub fn generate_work(input_hash: &[u8; 32], coin: &str) -> String {
     for _ in 0..cpus {
         let mut input_copy = [0u8; 32];
         input_copy.clone_from_slice(input_hash);
-        let threshold_copy = threshold.clone();
+        let threshold_copy = threshold;
         let terminator = terminated.clone();
         let thread_handle = thread::spawn(move || {
             let (success, work) = compute_work(terminator, &input_copy, threshold_copy);
@@ -48,9 +49,7 @@ fn compute_work(terminated: Terminated, input_hash: &[u8; 32], threshold: u64) -
     let mut work_n_hash = [0u8; 40];
     let hash = &mut work_n_hash[8..];
     let mut diff = [0u8; 32];
-    for i in 0..32 {
-        hash[i] = input_hash[i];
-    }
+    hash[..32].clone_from_slice(&input_hash[..32]);
     let work = &mut work_n_hash[0..8];
     rand::thread_rng().fill_bytes(work);
 

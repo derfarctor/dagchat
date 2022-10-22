@@ -19,10 +19,9 @@ pub fn load_receivables(s: &mut Cursive) {
         ProgressBar::new()
             .range(0, ticks)
             .with_task(move |counter| {
-                let account_info = get_account_info(&target_address, &node_url);
                 let mut balance: u128 = 0;
-                if account_info.is_some() {
-                    balance = get_balance(&account_info.unwrap());
+                if let Some(account_info) = get_account_info(&target_address, &node_url) {
+                    balance = get_balance(&account_info);
                 }
                 counter.tick(100);
                 let receivables = find_incoming(&target_address, &node_url, &counter);

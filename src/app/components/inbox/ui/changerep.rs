@@ -66,7 +66,7 @@ pub fn show_change_rep(s: &mut Cursive) {
                     show_inbox(s);
                     s.add_layer(Dialog::info("Successfully changed representative!"));
                 }))
-                .child(Button::new("Back", |s| show_inbox(s)))),
+                .child(Button::new("Back", show_inbox))),
         )
         .title("Change representative"),
     );

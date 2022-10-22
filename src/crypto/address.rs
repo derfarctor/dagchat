@@ -17,9 +17,9 @@ pub fn get_address(pub_key_bytes: &[u8], prefix: Option<&str>) -> String {
         let encoded_addr = ADDR_ENCODING.encode(&h);
 
         let mut addr = String::from("");
-        if prefix.is_some() {
-            addr = String::from(prefix.unwrap());
-        }
+        if let Some(prefix) = prefix {
+            addr = String::from(prefix);
+        };
         addr.push_str(encoded_addr.get(4..).unwrap());
         addr.push_str(&checksum);
         addr
@@ -31,19 +31,17 @@ pub fn get_address(pub_key_bytes: &[u8], prefix: Option<&str>) -> String {
 // like get_num_equivalent but this is faster since to_public_key
 // is used on confirmed valid addresses frequently in lib
 pub fn validate_address(addr: &str) -> bool {
-    let mut encoded_addr: String;
-
-    if !addr.contains("_") {
+    if !addr.contains('_') {
         return false;
     };
-    let parts: Vec<&str> = addr.split("_").collect();
+    let parts: Vec<&str> = addr.split('_').collect();
 
     // Minimum viable public representation
     if parts[1].len() < 52 {
         return false;
     };
     let checksum = String::from(parts[1].get(52..).unwrap());
-    encoded_addr = String::from(parts[1].get(0..52).unwrap());
+    let mut encoded_addr = String::from(parts[1].get(0..52).unwrap());
     encoded_addr.insert_str(0, "1111");
 
     let pub_key_vec = ADDR_ENCODING.decode(encoded_addr.as_bytes());
@@ -59,11 +57,7 @@ pub fn validate_address(addr: &str) -> bool {
     let real_checksum = ADDR_ENCODING.encode(&real_checksum_bytes);
 
     //println!("Told: {} Real: {}", checksum, real_checksum);
-    if checksum == real_checksum {
-        return true;
-    } else {
-        return false;
-    }
+    checksum == real_checksum
 }
 
 fn compute_address_checksum(pub_key_bytes: &[u8]) -> [u8; 5] {
