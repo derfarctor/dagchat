@@ -11,13 +11,11 @@ use cursive::views::{
 use cursive::Cursive;
 use dirs;
 
+use crate::util::constants::SHOW_TO_DP;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-pub mod defaults;
-use defaults::{DATA_DIR_PATH, MESSAGES_DIR_PATH, SHOW_TO_DP, WALLETS_PATH};
 // dagchat util
 mod dcutil;
 use dcutil::*;
@@ -31,70 +29,12 @@ use messages::SavedMessage;
 mod receive;
 mod send;
 
-pub struct UserData {
-    pub password: String,
-    pub wallets: Vec<wallets::Wallet>,
-    pub wallet_idx: usize,
-    pub lookup: HashMap<String, String>,
-    pub coin: Coin,
-    pub encrypted_bytes: Vec<u8>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Coin {
-    prefix: String,
-    name: String,
-    ticker: String,
-    multiplier: String,
-    node_url: String,
-    colour: Color,
-}
-
-impl Coin {
-    fn nano() -> Coin {
-        Coin {
-            prefix: String::from("nano_"),
-            name: String::from("nano"),
-            ticker: String::from("Ӿ"),
-            multiplier: String::from("1000000000000000000000000000000"),
-            node_url: String::from("https://app.natrium.io/api"),
-            colour: L_BLUE,
-        }
-    }
-    fn banano() -> Coin {
-        Coin {
-            prefix: String::from("ban_"),
-            name: String::from("banano"),
-            ticker: String::from(" BAN"),
-            multiplier: String::from("100000000000000000000000000000"),
-            node_url: String::from("https://kaliumapi.appditto.com/api"),
-            colour: YELLOW,
-        }
-    }
-}
-
-impl UserData {
-    pub fn new() -> Self {
-        UserData {
-            password: String::from(""),
-            wallets: vec![],
-            wallet_idx: 0,
-            lookup: HashMap::new(),
-            coin: Coin::nano(),
-            encrypted_bytes: vec![],
-        }
-    }
-}
-
-const VERSION: &str = "beta v1.0.0";
-
-const L_BLUE: Color = Color::Rgb(62, 138, 227);
-const M_BLUE: Color = Color::Rgb(0, 106, 255);
-const D_BLUE: Color = Color::Rgb(12, 37, 125);
-
-const YELLOW: Color = Color::Light(BaseColor::Yellow);
-const OFF_WHITE: Color = Color::Rgb(245, 245, 247);
-const RED: Color = Color::Light(BaseColor::Red);
+mod ui;
+mod util;
+use crate::ui::title::show_title;
+use crate::util::constants::Colours::*;
+use crate::util::constants::VERSION;
+use crate::util::userdata::UserData;
 
 fn main() {
     let backend_init = || -> std::io::Result<Box<dyn cursive::backend::Backend>> {
@@ -111,54 +51,6 @@ fn main() {
     siv.try_run_with(backend_init).ok().unwrap();
 }
 
-fn show_title(s: &mut Cursive) {
-    let data = UserData::new();
-    s.set_user_data(data);
-
-    set_theme(s, "nano", false);
-    let mut theme_group: RadioGroup<bool> = RadioGroup::new();
-
-    let mut coin_group: RadioGroup<String> = RadioGroup::new();
-
-    let radios = LinearLayout::horizontal()
-        .child(
-            LinearLayout::vertical()
-                .child(coin_group.button(String::from("nano"), "nano").selected())
-                .child(coin_group.button(String::from("banano"), "banano")),
-        )
-        .child(DummyView)
-        .child(
-            LinearLayout::vertical()
-                .child(theme_group.button(false, "Modest").selected())
-                .child(theme_group.button(true, "Vibrant")),
-        );
-
-    let button = Button::new_raw("Start", move |s| {
-        let coin = coin_group.selection();
-        let vibrant = theme_group.selection();
-        set_theme(s, &*coin, *vibrant);
-        if *coin == "banano" {
-            s.with_user_data(|data: &mut UserData| {
-                data.coin = Coin::banano();
-            });
-        }
-        check_setup(s);
-    });
-
-    s.add_layer(
-        Dialog::new()
-            .content(
-                LinearLayout::vertical()
-                    .child(DummyView)
-                    .child(button)
-                    .child(DummyView)
-                    .child(radios),
-            )
-            .title(format!("dagchat {}", VERSION))
-            .h_align(HAlign::Center),
-    );
-}
-
 fn go_back(s: &mut Cursive) {
     s.pop_layer();
 }
@@ -172,42 +64,6 @@ fn get_subtitle_colour(s: &mut Cursive) -> Color {
         sub_title_colour = data.coin.colour;
     }
     sub_title_colour
-}
-
-fn check_setup(s: &mut Cursive) {
-    if let Some(data_dir) = dirs::data_dir() {
-        let dagchat_dir = data_dir.join(DATA_DIR_PATH);
-        let messages_dir = dagchat_dir.join(MESSAGES_DIR_PATH);
-        if !dagchat_dir.exists() {
-            fs::create_dir(&dagchat_dir).unwrap_or_else(|e| {
-                let content = format!(
-                    "Failed to create a data folder for dagchat at path: {:?}\nError: {}",
-                    dagchat_dir, e
-                );
-                s.add_layer(Dialog::info(content))
-            });
-            if !dagchat_dir.exists() {
-                return;
-            }
-        }
-        if !messages_dir.exists() {
-            fs::create_dir(&messages_dir).unwrap_or_else(|e| {
-                let content = format!(
-                    "Failed to create a messages folder for dagchat at path: {:?}\nError: {}",
-                    messages_dir, e
-                );
-                s.add_layer(Dialog::info(content))
-            });
-            if !messages_dir.exists() {
-                return;
-            }
-        }
-        wallets::load_wallets(s, dagchat_dir);
-    } else {
-        s.add_layer(Dialog::info(
-            "Error locating the application data folder on your system.",
-        ));
-    }
 }
 
 fn show_change_rep(s: &mut Cursive) {
@@ -384,54 +240,4 @@ fn show_inbox(s: &mut Cursive) {
         });
     }
     s.set_user_data(data);
-}
-
-fn set_theme(s: &mut Cursive, style: &str, vibrant: bool) {
-    let mut theme = s.current_theme().clone();
-    if style == "nano" {
-        theme = get_nano_theme(theme, vibrant);
-    } else {
-        theme = get_banano_theme(theme, vibrant);
-    }
-    s.set_theme(theme);
-}
-
-fn get_banano_theme(mut base: Theme, v: bool) -> Theme {
-    if v {
-        base.shadow = true;
-        base.palette[PaletteColor::Background] = YELLOW;
-    } else {
-        base.palette[PaletteColor::Background] = Color::Rgb(25, 25, 27);
-    }
-    base.palette[PaletteColor::View] = Color::Rgb(34, 34, 42);
-    base.palette[PaletteColor::Primary] = YELLOW;
-    base.palette[PaletteColor::Secondary] = YELLOW;
-    base.palette[PaletteColor::Tertiary] = OFF_WHITE;
-    base.palette[PaletteColor::TitlePrimary] = OFF_WHITE;
-    base.palette[PaletteColor::TitleSecondary] = YELLOW;
-    base.palette[PaletteColor::Highlight] = Color::Dark(BaseColor::Yellow);
-    base.palette[PaletteColor::HighlightInactive] = YELLOW;
-    base.palette[PaletteColor::Shadow] = Color::Dark(BaseColor::Yellow);
-    base
-}
-
-fn get_nano_theme(mut base: Theme, v: bool) -> Theme {
-    if v {
-        base.shadow = true;
-        base.palette[PaletteColor::Background] = L_BLUE;
-        base.palette[PaletteColor::Shadow] = D_BLUE;
-    } else {
-        base.shadow = false;
-        base.palette[PaletteColor::Background] = Color::Rgb(25, 25, 27);
-    }
-    base.borders = BorderStyle::Simple;
-    base.palette[PaletteColor::View] = Color::Rgb(34, 34, 42);
-    base.palette[PaletteColor::Primary] = OFF_WHITE;
-    base.palette[PaletteColor::Secondary] = OFF_WHITE;
-    base.palette[PaletteColor::Tertiary] = M_BLUE;
-    base.palette[PaletteColor::TitlePrimary] = OFF_WHITE;
-    base.palette[PaletteColor::TitleSecondary] = YELLOW;
-    base.palette[PaletteColor::Highlight] = D_BLUE;
-    base.palette[PaletteColor::HighlightInactive] = L_BLUE;
-    base
 }

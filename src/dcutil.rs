@@ -19,7 +19,7 @@ use std::str;
 use std::str::FromStr;
 
 // Will do something dynamic with reps in future
-use crate::defaults::*;
+use crate::util::constants::{DEFAULT_REP_BANANO, DEFAULT_REP_NANO, IV_LENGTH, SALT_LENGTH};
 
 // Used to update progress bar in cursive app
 // Each counter has 1000 ticks
@@ -30,6 +30,9 @@ const ADDR_ENCODING: Encoding = new_encoding! {
     check_trailing_bits: false,
 };
 
+//t
+use crate::util::rpc::receivable::*;
+//t
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AccountInfoResponse {
     frontier: String,
@@ -55,39 +58,6 @@ pub struct Block {
     balance: String,
     link: String,
     signature: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ReceivableRequest {
-    action: String,
-    account: String,
-    source: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ReceivableResponse {
-    blocks: ReceivableBlocks,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ReceivableBlocks {
-    #[serde(flatten)]
-    data: HashMap<String, ReceivableBlock>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ReceivableBlock {
-    amount: String,
-    source: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Receivable {
-    pub hash: String,
-    pub message: Option<Message>,
-    pub amount: u128,
-    // Used for seeing message sender in app
-    pub source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -430,7 +400,6 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
     counter.tick(200);
 
     //eprintln!("{}", &response);
-    
     let receivables: Result<ReceivableResponse, _> = serde_json::from_str(&response);
     let receivables = match receivables {
         Ok(receivables) => receivables,
@@ -507,11 +476,13 @@ pub fn get_blocks_info(hashes: Vec<String>, node_url: &str) -> BlocksInfoRespons
         Ok(blocks_info_response) => blocks_info_response,
         // If deserialisation failed, either there were no blocks
         // Or an different error was encountered.
-        Err(_) => return BlocksInfoResponse {
-            blocks: BlocksResponse {
-                data: HashMap::new(),
-            },
-        },
+        Err(_) => {
+            return BlocksInfoResponse {
+                blocks: BlocksResponse {
+                    data: HashMap::new(),
+                },
+            }
+        }
     };
 
     blocks_info_response

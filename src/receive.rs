@@ -1,5 +1,5 @@
 use super::*;
-
+use crate::util::constants::SHOW_TO_DP;
 use std::time::SystemTime;
 
 pub fn show_message_info(s: &mut Cursive, _name: &str) {
