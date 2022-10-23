@@ -1,6 +1,15 @@
-use super::*;
-
-use std::time::SystemTime;
+use super::process::process_send;
+use crate::app::components::inbox::ui::primary::show_inbox;
+use crate::app::themes::get_subtitle_colour;
+use crate::app::{clipboard::*, userdata::UserData};
+use crate::crypto::{address::validate_address, conversions::whole_to_raw};
+use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView};
+use cursive::{
+    align::HAlign,
+    traits::{Nameable, Resizable},
+    utils::markup::StyledString,
+    Cursive,
+};
 
 pub fn show_send(s: &mut Cursive, with_message: bool) {
     s.pop_layer();
@@ -15,16 +24,15 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
 
     if balance == 0 {
         let address = account.address.clone();
-        let no_balance_message;
-        if with_message {
-            no_balance_message = String::from("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. One faucet claim will last you a lifetime.");
+        let no_balance_message = if with_message {
+            String::from("To send a message with dagchat you need a balance of at least 1 raw - a tiny fraction of a coin. One faucet claim will last you a lifetime.")
         } else {
-            no_balance_message = format!("You don't have any {} in your wallet to send.", coin);
-        }
+            format!("You don't have any {} in your wallet to send.", coin)
+        };
         s.add_layer(
             Dialog::around(TextView::new(no_balance_message))
                 .h_align(HAlign::Center)
-                .button("Back", |s| show_inbox(s))
+                .button("Back", show_inbox)
                 .button("Copy Address", move |s| copy_to_clip(s, address.clone()))
                 .max_width(75),
         );
@@ -43,11 +51,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
             LinearLayout::horizontal()
                 .child(Button::new("Paste", |s| {
                     s.call_on_name("address", |view: &mut TextArea| {
-                        let mut clipboard: ClipboardContext = ClipboardProvider::new().unwrap();
-                        let clip = clipboard
-                            .get_contents()
-                            .unwrap_or_else(|_| String::from("Failed to read clipboard."));
-                        view.set_content(clip);
+                        view.set_content(paste_clip());
                     })
                     .unwrap();
                 }))
@@ -106,13 +110,11 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                 })
                 .unwrap();
                 if address.is_empty() {
-                    let content;
-                    if with_message {
-                        content =
-                            String::from("You must provide an address to send the message to!");
+                    let content = if with_message {
+                        String::from("You must provide an address to send the message to!")
                     } else {
-                        content = format!("You must provide an address to send {} to!", coin);
-                    }
+                        format!("You must provide an address to send {} to!", coin)
+                    };
                     s.add_layer(Dialog::info(content));
                     return;
                 }
@@ -128,12 +130,11 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                 if !amount.is_empty() {
                     let raw_opt = whole_to_raw(amount, &multiplier);
                     if raw_opt.is_none() {
-                        let content;
-                        if with_message {
-                            content = "The optional amount was invalid.";
+                        let content = if with_message {
+                            "The optional amount was invalid."
                         } else {
-                            content = "The amount was invalid.";
-                        }
+                            "The amount was invalid."
+                        };
                         s.add_layer(Dialog::info(content));
                         return;
                     }
@@ -153,112 +154,21 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                             return;
                         }
                     }
-                } else {
-                    if message.is_empty() {
-                        // The user supplied no amount and it's not a message
-                        s.add_layer(Dialog::info(format!(
-                            "You must provide an amount of {} to send!",
-                            coin
-                        )));
-                        return;
-                    }
+                } else if message.is_empty() {
+                    // The user supplied no amount and it's not a message
+                    s.add_layer(Dialog::info(format!(
+                        "You must provide an amount of {} to send!",
+                        coin
+                    )));
+                    return;
                 }
                 process_send(s, raw, address, message);
             }))
-            .child(Button::new("Back", |s| show_inbox(s))),
+            .child(Button::new("Back", show_inbox)),
     );
     s.add_layer(
         Dialog::around(form_content)
             .title(title_content)
             .padding_lrtb(1, 1, 1, 0),
     );
-}
-
-pub fn show_sent(s: &mut Cursive, with_message: bool) {
-    s.set_autorefresh(false);
-    s.pop_layer();
-    let content;
-    if with_message {
-        content = "Message sent successfully!";
-    } else {
-        content = "Sent successfully!";
-    }
-    s.add_layer(Dialog::text(content).button("Back", |s| show_inbox(s)));
-}
-
-fn process_send(s: &mut Cursive, raw: u128, address: String, message: String) {
-    let ticks = 1000;
-    let cb = s.cb_sink().clone();
-    let data = &mut s.user_data::<UserData>().unwrap();
-    let node_url = data.coin.node_url.clone();
-    let wallet = &data.wallets[data.wallet_idx];
-    let private_key_bytes = wallet.accounts[wallet.acc_idx].private_key;
-    let prefix = data.coin.prefix.clone();
-    s.pop_layer();
-    s.add_layer(Dialog::around(
-        ProgressBar::new()
-            .range(0, ticks)
-            .with_task(move |counter| {
-                let with_message = !message.is_empty();
-                let mut hash = String::from("");
-                if !with_message {
-                    send(
-                        &private_key_bytes,
-                        address.clone(),
-                        raw,
-                        &node_url,
-                        &prefix,
-                        &counter,
-                    );
-                } else {
-                    hash = send_message(
-                        &private_key_bytes,
-                        address.clone(),
-                        raw,
-                        message.clone(),
-                        &node_url,
-                        &prefix,
-                        &counter,
-                    );
-                }
-                cb.send(Box::new(move |s| {
-                    let mut save_res = Ok(());
-                    let data = &mut s.user_data::<UserData>().unwrap();
-                    let wallet = &mut data.wallets[data.wallet_idx];
-                    let account = &mut wallet.accounts[wallet.acc_idx];
-                    account.balance -= raw;
-                    if with_message {
-                        account.messages.as_mut().unwrap().push(SavedMessage {
-                            outgoing: true,
-                            address: address.clone(),
-                            timestamp: match SystemTime::now()
-                                .duration_since(SystemTime::UNIX_EPOCH)
-                            {
-                                Ok(n) => n.as_secs(),
-                                Err(_) => 0u64,
-                            },
-                            amount: display_to_dp(
-                                raw,
-                                SHOW_TO_DP,
-                                &data.coin.multiplier,
-                                &data.coin.ticker,
-                            ),
-                            hash,
-                            plaintext: message.clone(),
-                        });
-                        save_res = messages::save_messages(s);
-                    }
-                    show_sent(s, with_message);
-                    if save_res.is_err() {
-                        s.add_layer(
-                            Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
-                                .title("Failed to save messages"),
-                        );
-                    }
-                }))
-                .unwrap();
-            })
-            .full_width(),
-    ));
-    s.set_autorefresh(true);
 }
