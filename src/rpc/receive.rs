@@ -49,7 +49,7 @@ pub struct Receivable {
 
 pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) -> Vec<Receivable> {
     let request = ReceivableRequest {
-        action: String::from("receivable"),
+        action: String::from("pending"),
         account: String::from(target_address),
         //count: String::from("50"),
         source: true,
@@ -74,7 +74,6 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
         head_hashes.push(block.0.clone());
     }
     counter.tick(50);
-
     let head_blocks_info = get_blocks_info(head_hashes, node_url);
     counter.tick(200);
     let mut raw_head_blocks = head_blocks_info.blocks.data;

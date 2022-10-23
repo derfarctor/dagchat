@@ -5,7 +5,7 @@ pub const SHOW_TO_DP: usize = 6;
 pub mod banano {
     pub const DEFAULT_REP: &str =
         "ban_3catgir1p6b1edo5trp7fdb8gsxx4y5ffshbphj73zzy5hu678rsry7srh8b";
-    pub const NODE_URL: &str = "https://kaliumapi.appditto.com/api";
+    pub const NODE_URL: &str = "https://vault.banano.cc/api/node-api";
     pub const WORK_NODE_URL: &str = "https://kaliumapi.appditto.com/api";
     pub const DIFFICULTY_THRESHOLD: &str = "FFFFFE0000000000";
 }
@@ -13,7 +13,7 @@ pub mod banano {
 pub mod nano {
     pub const DEFAULT_REP: &str =
         "nano_3zx7rus19yr5qi5zmkawnzo5ehxr7i73xqghhondhfrzftgstgk4gxbubwfq";
-    pub const NODE_URL: &str = "https://app.natrium.io/api";
+    pub const NODE_URL: &str = "https://proxy.nanos.cc/proxy";
     pub const WORK_NODE_URL: &str = "https://app.natrium.io/api";
     pub const DIFFICULTY_THRESHOLD: &str = "FFFFFFF800000000";
 }

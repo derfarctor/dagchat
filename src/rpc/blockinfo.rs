@@ -31,7 +31,6 @@ pub struct BlockResponse {
     balance: String,
     pub height: String,
     local_timestamp: String,
-    successor: String,
     confirmed: String,
     pub contents: Block,
     subtype: String,
