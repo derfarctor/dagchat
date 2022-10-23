@@ -1,6 +1,6 @@
 use super::{structs::WalletsAndLookup, ui::primary::show_wallets};
 use crate::app::{
-    constants::{colours::RED, WALLETS_PATH},
+    constants::{colours::RED, paths},
     userdata::UserData,
 };
 use crate::crypto::aes::decrypt_bytes;
@@ -10,12 +10,14 @@ use std::{fs, path::PathBuf};
 
 pub fn load_wallets(s: &mut Cursive, data_path: PathBuf) {
     s.pop_layer();
-    let wallets_file = data_path.join(WALLETS_PATH);
+    let wallets_file = data_path.join(paths::WALLETS);
     if wallets_file.exists() {
         let encrypted_bytes = fs::read(&wallets_file).unwrap_or_else(|e| {
             let content = format!(
                 "Failed to read {} file at path: {:?}\nError: {}",
-                WALLETS_PATH, wallets_file, e
+                paths::WALLETS,
+                wallets_file,
+                e
             );
             s.add_layer(Dialog::info(content));
             vec![]
@@ -74,7 +76,7 @@ fn load_with_password(s: &mut Cursive, password: &str) {
         s.add_layer(Dialog::info(StyledString::styled(
             format!(
                 "Error parsing {} file. File was either corrupted or edited outside of dagchat.",
-                WALLETS_PATH
+                paths::WALLETS
             ),
             RED,
         )));

@@ -1,7 +1,7 @@
 use super::super::{save::save_wallets, ui::primary::show_wallets};
 use super::backup::backup_wallet;
 use crate::app::{
-    constants::{colours::RED, DATA_DIR_PATH, MESSAGES_DIR_PATH},
+    constants::{colours::RED, paths},
     userdata::UserData,
 };
 use cursive::views::{Dialog, DummyView, LinearLayout, OnEventView, SelectView, TextView};
@@ -42,7 +42,7 @@ pub fn remove_wallet(s: &mut Cursive) {
             // have no messages linked.
             for account in &wallet.accounts {
                 let data_dir = dirs::data_dir().unwrap();
-                let messages_dir = data_dir.join(DATA_DIR_PATH).join(MESSAGES_DIR_PATH);
+                let messages_dir = data_dir.join(paths::DATA_DIR).join(paths::MESSAGES_DIR);
                 if data.lookup.contains_key(&account.address) {
                     let filename =
                         format!("{}.dagchat", data.lookup.get(&account.address).unwrap());

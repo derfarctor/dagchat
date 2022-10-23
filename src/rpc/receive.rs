@@ -1,7 +1,7 @@
 use super::{accountinfo::*, blockinfo::get_blocks_info, process::*};
 use crate::app::{
     components::messages::structs::Message,
-    constants::{DEFAULT_REP_BANANO, DEFAULT_REP_NANO},
+    constants::{banano, nano},
 };
 use crate::crypto::{
     blocks::{get_block_hash, get_signed_block},
@@ -17,6 +17,7 @@ use std::collections::HashMap;
 pub struct ReceivableRequest {
     pub action: String,
     pub account: String,
+    //pub count: String,
     pub source: bool,
 }
 
@@ -48,8 +49,9 @@ pub struct Receivable {
 
 pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) -> Vec<Receivable> {
     let request = ReceivableRequest {
-        action: String::from("pending"),
+        action: String::from("receivable"),
         account: String::from(target_address),
+        //count: String::from("50"),
         source: true,
     };
 
@@ -134,7 +136,7 @@ pub fn receive_block(
     let representative: [u8; 32];
     let link = get_32_bytes(send_block);
 
-    if let Some(account_info) = account_info_opt {
+    if let Ok(account_info) = account_info_opt {
         last_block_hash = get_32_bytes(&account_info.frontier);
         let balance = get_balance(&account_info);
         new_balance = balance + amount;
@@ -142,9 +144,9 @@ pub fn receive_block(
     } else {
         // OPEN BLOCK
         if addr_prefix == "nano_" {
-            representative = to_public_key(DEFAULT_REP_NANO);
+            representative = to_public_key(nano::DEFAULT_REP);
         } else if addr_prefix == "ban_" {
-            representative = to_public_key(DEFAULT_REP_BANANO);
+            representative = to_public_key(banano::DEFAULT_REP);
         } else {
             panic!("Unknown network... no default rep to open account.");
         }

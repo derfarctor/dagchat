@@ -20,7 +20,7 @@ pub fn load_receivables(s: &mut Cursive) {
             .range(0, ticks)
             .with_task(move |counter| {
                 let mut balance: u128 = 0;
-                if let Some(account_info) = get_account_info(&target_address, &node_url) {
+                if let Ok(account_info) = get_account_info(&target_address, &node_url) {
                     balance = get_balance(&account_info);
                 }
                 counter.tick(100);

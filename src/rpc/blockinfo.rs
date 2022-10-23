@@ -12,6 +12,7 @@ pub struct Block {
     pub representative: String,
     pub balance: String,
     pub link: String,
+    pub work: String,
     pub signature: String,
 }
 

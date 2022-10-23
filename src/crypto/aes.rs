@@ -1,4 +1,4 @@
-use crate::app::constants::{IV_LENGTH, SALT_LENGTH};
+use crate::app::constants::crypto::{IV_LENGTH, SALT_LENGTH};
 use aes_gcm::aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Nonce};
 use argon2::{self, Config};

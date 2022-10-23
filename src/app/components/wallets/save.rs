@@ -1,20 +1,17 @@
 use super::structs::WalletsAndLookup;
-use crate::app::{
-    constants::{DATA_DIR_PATH, WALLETS_PATH},
-    userdata::UserData,
-};
+use crate::app::{constants::paths, userdata::UserData};
 use crate::crypto::aes::encrypt_bytes;
 use cursive::Cursive;
 use std::fs;
 
 fn write_wallets(encrypted_bytes: Vec<u8>) -> Result<(), String> {
     if let Some(data_dir) = dirs::data_dir() {
-        let wallets_file = data_dir.join(DATA_DIR_PATH).join(WALLETS_PATH);
+        let wallets_file = data_dir.join(paths::DATA_DIR).join(paths::WALLETS);
         let write_res = fs::write(&wallets_file, encrypted_bytes);
         if write_res.is_err() {
             return Err(format!(
                 "Failed to write to {} file at path: {:?}\nError: {:?}",
-                WALLETS_PATH,
+                paths::WALLETS,
                 wallets_file,
                 write_res.err()
             ));

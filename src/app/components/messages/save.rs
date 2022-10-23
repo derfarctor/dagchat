@@ -1,5 +1,5 @@
 use crate::app::components::wallets::save::save_wallets;
-use crate::app::constants::{DATA_DIR_PATH, MESSAGES_DIR_PATH};
+use crate::app::constants::paths;
 use crate::app::userdata::UserData;
 use crate::crypto::aes::encrypt_bytes;
 use cursive::Cursive;
@@ -23,7 +23,7 @@ pub fn save_messages(s: &mut Cursive) -> Result<(), String> {
     let data = &mut s.user_data::<UserData>().unwrap();
     let wallet = &data.wallets[data.wallet_idx];
     let data_dir = dirs::data_dir().unwrap();
-    let messages_dir = data_dir.join(DATA_DIR_PATH).join(MESSAGES_DIR_PATH);
+    let messages_dir = data_dir.join(paths::DATA_DIR).join(paths::MESSAGES_DIR);
     let address = &wallet.accounts[wallet.acc_idx].address;
     let lookup_key = match data.lookup.get(address) {
         Some(id) => id.to_owned(),

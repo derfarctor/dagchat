@@ -1,4 +1,5 @@
-use super::address::get_address;
+use super::{address::get_address, pow::*};
+use crate::app::constants::LOCAL_WORK;
 use crate::rpc::blockinfo::Block;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
@@ -50,7 +51,18 @@ pub fn get_signed_block(
         expanded_secret.sign(block_hash, &ed25519_dalek::PublicKey::from(&secret));
     let signed_bytes = internal_signed.to_bytes();
 
-    //let work = generate_work(&previous, "banano");
+    let work = if LOCAL_WORK {
+        // If it is the open block then use the public key to generate work.
+        // If not, use previous block hash.
+        if previous == &[0u8; 32] {
+            generate_work(public.as_bytes().try_into().unwrap(), addr_prefix)
+        } else {
+            generate_work(&previous, addr_prefix)
+        }
+    } else {
+        String::from("")
+    };
+
     let block = Block {
         type_name: String::from("state"),
         account: get_address(public.as_bytes(), Some(addr_prefix)),
@@ -58,6 +70,7 @@ pub fn get_signed_block(
         representative: get_address(rep, Some(addr_prefix)),
         balance: balance.to_string(),
         link: hex::encode(link),
+        work,
         signature: hex::encode(&signed_bytes),
     };
 

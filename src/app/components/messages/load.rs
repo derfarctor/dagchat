@@ -1,5 +1,5 @@
 use super::{save::create_key, structs::SavedMessage};
-use crate::app::constants::{DATA_DIR_PATH, MESSAGES_DIR_PATH};
+use crate::app::constants::paths;
 use crate::app::userdata::UserData;
 use crate::crypto::aes::decrypt_bytes;
 use cursive::Cursive;
@@ -17,8 +17,8 @@ pub fn load_messages(s: &mut Cursive) -> Result<Vec<SavedMessage>, String> {
     let data_dir = dirs::data_dir().unwrap();
     let filename = format!("{}.dagchat", lookup_key);
     let messages_file = data_dir
-        .join(DATA_DIR_PATH)
-        .join(MESSAGES_DIR_PATH)
+        .join(paths::DATA_DIR)
+        .join(paths::MESSAGES_DIR)
         .join(filename);
     if messages_file.exists() {
         let mut error = String::from("");

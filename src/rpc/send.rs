@@ -7,6 +7,7 @@ use crate::crypto::{
 use crate::rpc::accountinfo::{get_account_info, get_balance};
 use crate::rpc::process::publish_block;
 use cursive::utils::Counter;
+
 pub fn send(
     private_key_bytes: &[u8; 32],
     address: String,

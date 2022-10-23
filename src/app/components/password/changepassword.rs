@@ -1,4 +1,4 @@
-use crate::app::constants::{DATA_DIR_PATH, MESSAGES_DIR_PATH};
+use crate::app::constants::paths;
 use crate::app::userdata::UserData;
 use crate::crypto::aes::{decrypt_bytes, encrypt_bytes};
 use cursive::Cursive;
@@ -7,7 +7,7 @@ use std::fs;
 pub fn change_password(s: &mut Cursive, new_password: &str) -> Result<(), String> {
     let data = &mut s.user_data::<UserData>().unwrap();
     let data_dir = dirs::data_dir().unwrap();
-    let messages_dir = data_dir.join(DATA_DIR_PATH).join(MESSAGES_DIR_PATH);
+    let messages_dir = data_dir.join(paths::DATA_DIR).join(paths::MESSAGES_DIR);
 
     for (_a, lookup_key) in data.lookup.iter() {
         let filename = format!("{}.dagchat", lookup_key);
