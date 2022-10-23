@@ -77,6 +77,7 @@ pub fn send_message(
             balance,
             &block_hash,
             addr_prefix,
+            &sub,
         );
         if block_num == 0 {
             first_block_hash = block_hash;
@@ -102,6 +103,7 @@ pub fn send_message(
         balance,
         &block_hash,
         addr_prefix,
+        &sub,
     );
     publish_block(block, sub, node_url);
     hex::encode(last_block_hash)

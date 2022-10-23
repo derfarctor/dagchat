@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::thread;
 type Terminated = Arc<AtomicBool>;
 
-pub fn generate_work(input_hash: &[u8; 32], prefix: &str) -> String {
+pub fn generate_work(input_hash: &[u8; 32], threshold: u64) -> String {
     let cpus = num_cpus::get();
 
     /*
@@ -19,16 +19,6 @@ pub fn generate_work(input_hash: &[u8; 32], prefix: &str) -> String {
     */
 
     let terminated = Arc::new(AtomicBool::new(false));
-    let threshold: u64;
-
-    if prefix == "nano_" {
-        threshold = u64::from_str_radix(nano::DIFFICULTY_THRESHOLD, 16).unwrap();
-    } else if prefix == "ban_" {
-        threshold = u64::from_str_radix(banano::DIFFICULTY_THRESHOLD, 16).unwrap();
-    } else {
-        panic!("Unknown coin threshold");
-    }
-
     let mut threads = vec![];
 
     for i in 0..cpus {

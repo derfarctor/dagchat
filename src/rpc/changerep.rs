@@ -15,6 +15,7 @@ pub fn change_rep(
     let balance = get_balance(&account_info);
     let representative = to_public_key(rep_address);
     let link = [0u8; 32];
+    let sub = String::from("change");
     let block_hash = get_block_hash(
         private_key_bytes,
         &representative,
@@ -30,6 +31,7 @@ pub fn change_rep(
         balance,
         &block_hash,
         addr_prefix,
+        &sub,
     );
-    publish_block(block, String::from("change"), node_url);
+    publish_block(block, sub, node_url);
 }

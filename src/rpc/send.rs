@@ -30,6 +30,7 @@ pub fn send(
     let representative = to_public_key(&account_info.representative);
     let link = to_public_key(&address);
     counter.tick(100);
+    let sub = String::from("send");
     let block_hash = get_block_hash(
         private_key_bytes,
         &representative,
@@ -45,8 +46,9 @@ pub fn send(
         new_balance,
         &block_hash,
         addr_prefix,
+        &sub,
     );
     counter.tick(100);
-    publish_block(signed_block, String::from("send"), node_url);
+    publish_block(signed_block, sub, node_url);
     counter.tick(400);
 }

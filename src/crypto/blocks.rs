@@ -1,5 +1,6 @@
 use super::{address::get_address, pow::*};
-use crate::app::constants::LOCAL_WORK;
+
+use crate::app::constants::{banano, nano, LOCAL_WORK};
 use crate::rpc::blockinfo::Block;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
@@ -42,6 +43,7 @@ pub fn get_signed_block(
     balance: u128,
     block_hash: &[u8; 32],
     addr_prefix: &str,
+    sub: &str,
 ) -> Block {
     let secret = ed25519_dalek::SecretKey::from_bytes(priv_k).unwrap();
     let public = ed25519_dalek::PublicKey::from(&secret);
@@ -54,11 +56,27 @@ pub fn get_signed_block(
     let work = if LOCAL_WORK {
         // If it is the open block then use the public key to generate work.
         // If not, use previous block hash.
-        if previous == &[0u8; 32] {
-            generate_work(public.as_bytes().try_into().unwrap(), addr_prefix)
-        } else {
-            generate_work(&previous, addr_prefix)
+        let mut previous_hash = previous;
+        if previous_hash == &[0u8; 32] {
+            previous_hash = public.as_bytes().try_into().unwrap();
         }
+        let threshold;
+        if addr_prefix == "nano_" {
+            if sub == "receive" {
+                threshold = u64::from_str_radix(nano::RECEIVE_THRESH, 16).unwrap();
+            } else {
+                threshold = u64::from_str_radix(nano::SEND_THRESH, 16).unwrap();
+            }
+        } else if addr_prefix == "ban_" {
+            if sub == "receive" {
+                threshold = u64::from_str_radix(banano::RECEIVE_THRESH, 16).unwrap();
+            } else {
+                threshold = u64::from_str_radix(banano::SEND_THRESH, 16).unwrap();
+            }
+        } else {
+            panic!("Unknown coin threshold");
+        }
+        generate_work(previous_hash, threshold)
     } else {
         String::from("")
     };

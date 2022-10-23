@@ -152,6 +152,7 @@ pub fn receive_block(
     }
 
     counter.tick(200);
+    let sub = String::from("receive");
     let block_hash = get_block_hash(
         private_key_bytes,
         &representative,
@@ -167,8 +168,9 @@ pub fn receive_block(
         new_balance,
         &block_hash,
         addr_prefix,
+        &sub,
     );
     counter.tick(200);
-    publish_block(signed_block, String::from("receive"), node_url);
+    publish_block(signed_block, sub, node_url);
     counter.tick(200);
 }

@@ -7,7 +7,8 @@ pub mod banano {
         "ban_3catgir1p6b1edo5trp7fdb8gsxx4y5ffshbphj73zzy5hu678rsry7srh8b";
     pub const NODE_URL: &str = "https://vault.banano.cc/api/node-api";
     pub const WORK_NODE_URL: &str = "https://kaliumapi.appditto.com/api";
-    pub const DIFFICULTY_THRESHOLD: &str = "FFFFFE0000000000";
+    pub const SEND_THRESH: &str = "FFFFFE0000000000";
+    pub const RECEIVE_THRESH: &str = "FFFFFE0000000000";
 }
 
 pub mod nano {
@@ -15,7 +16,8 @@ pub mod nano {
         "nano_3zx7rus19yr5qi5zmkawnzo5ehxr7i73xqghhondhfrzftgstgk4gxbubwfq";
     pub const NODE_URL: &str = "https://proxy.nanos.cc/proxy";
     pub const WORK_NODE_URL: &str = "https://app.natrium.io/api";
-    pub const DIFFICULTY_THRESHOLD: &str = "FFFFFFF800000000";
+    pub const SEND_THRESH: &str = "FFFFFFF800000000";
+    pub const RECEIVE_THRESH: &str = "FFFFFE0000000000";
 }
 
 pub mod crypto {
