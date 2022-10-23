@@ -1,2 +1,2 @@
-pub mod checksetup;
+mod checksetup;
 pub mod ui;

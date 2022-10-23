@@ -1,2 +1,2 @@
-pub mod changemessage;
+mod changepassword;
 pub mod ui;

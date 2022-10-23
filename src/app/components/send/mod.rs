@@ -1,2 +1,2 @@
-pub mod sendmessage;
+mod sendmessage;
 pub mod ui;

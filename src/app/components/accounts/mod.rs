@@ -1,3 +1,3 @@
-pub mod add;
+mod add;
 pub mod structs;
 pub mod ui;

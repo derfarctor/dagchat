@@ -1,4 +1,4 @@
-use super::super::changemessage::change_message_passwords;
+use super::super::changepassword::change_password;
 use crate::app::components::wallets::{save::save_wallets, ui::primary::show_wallets};
 use crate::app::{constants::colours::RED, userdata::UserData};
 use cursive::traits::{Nameable, Resizable};
@@ -40,7 +40,7 @@ where
                 s.add_layer(Dialog::info("Passwords did not match."));
                 return;
             }
-            let msg_save_res = change_message_passwords(s, &password);
+            let msg_save_res = change_password(s, &password);
             let data = &mut s.user_data::<UserData>().unwrap();
             data.password = password.to_string();
             let acc_save_res = save_wallets(s);
