@@ -1,4 +1,3 @@
-use crate::app::constants::{banano, nano};
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use rand::RngCore;

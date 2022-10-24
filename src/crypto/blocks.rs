@@ -58,7 +58,7 @@ pub fn get_signed_block(
         // If not, use previous block hash.
         let mut previous_hash = previous;
         if previous_hash == &[0u8; 32] {
-            previous_hash = public.as_bytes().try_into().unwrap();
+            previous_hash = public.as_bytes();
         }
         let threshold;
         if addr_prefix == "nano_" {

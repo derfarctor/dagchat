@@ -1,6 +1,6 @@
 use crate::app::components::inbox::ui::primary::show_inbox;
 use crate::app::userdata::UserData;
-use crate::rpc::{accountinfo::*, receive::find_incoming};
+use crate::rpc::{accountinfo::*, incoming::find_incoming};
 use cursive::traits::Resizable;
 use cursive::views::{Dialog, ProgressBar};
 use cursive::Cursive;

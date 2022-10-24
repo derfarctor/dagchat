@@ -1,4 +1,4 @@
-use super::super::sendmessage::send_message;
+use super::super::{sendblock::send, sendmessage::send_message};
 use super::sent::show_sent;
 use crate::app::{
     components::messages::{save::save_messages, structs::SavedMessage},
@@ -6,7 +6,6 @@ use crate::app::{
     userdata::UserData,
 };
 use crate::crypto::conversions::display_to_dp;
-use crate::rpc::send::send;
 use cursive::{
     traits::Resizable,
     views::{Dialog, ProgressBar},

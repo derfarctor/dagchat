@@ -1,10 +1,10 @@
-use crate::app::components::messages::{save::save_messages, structs::SavedMessage};
+use super::super::receiveblock::receive_block;
 use crate::app::{
+    components::messages::{save::save_messages, structs::SavedMessage},
     constants::{colours::RED, SHOW_TO_DP},
     userdata::UserData,
 };
 use crate::crypto::conversions::display_to_dp;
-use crate::rpc::receive::receive_block;
 use cursive::views::{Dialog, ProgressBar, SelectView, TextView};
 use cursive::{traits::Resizable, utils::markup::StyledString, Cursive};
 use std::time::SystemTime;

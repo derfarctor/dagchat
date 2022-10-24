@@ -1,8 +1,8 @@
-use crate::app::components::messages::structs::SavedMessage;
-use crate::app::components::wallets::structs::Wallet;
+use crate::app::components::{
+    messages::structs::SavedMessage, receive::structs::Receivable, wallets::structs::Wallet,
+};
 use crate::crypto::address::get_address;
 use crate::crypto::keys::get_private_key;
-use crate::rpc::receive::Receivable;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
