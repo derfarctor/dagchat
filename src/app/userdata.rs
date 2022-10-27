@@ -7,6 +7,7 @@ pub struct UserData {
     pub wallets: Vec<Wallet>,
     pub wallet_idx: usize,
     pub lookup: HashMap<String, String>,
+    pub addressbook: HashMap<String, String>,
     pub coin: Coin,
     pub encrypted_bytes: Vec<u8>,
 }
@@ -18,6 +19,7 @@ impl UserData {
             wallets: vec![],
             wallet_idx: 0,
             lookup: HashMap::new(),
+            addressbook: HashMap::new(),
             coin: Coin::nano(),
             encrypted_bytes: vec![],
         }

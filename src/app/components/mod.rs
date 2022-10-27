@@ -6,3 +6,4 @@ pub mod receive;
 pub mod send;
 pub mod title;
 pub mod wallets;
+pub mod addressbook;
