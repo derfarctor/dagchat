@@ -1,4 +1,5 @@
 use super::primary::show_inbox;
+use crate::app::components::addressbook::ui::primary::show_addressbook;
 use crate::app::{clipboard::paste_clip, themes::get_subtitle_colour, userdata::UserData};
 use crate::crypto::address::validate_address;
 use crate::rpc::{accountinfo::get_account_info, changerep::change_rep};
@@ -15,7 +16,7 @@ pub fn show_change_rep(s: &mut Cursive) {
     let private_key = account.private_key;
     let coin = data.coin.clone();
     let address = account.address.clone();
-    let sub_title_colour = get_subtitle_colour(s);
+    let sub_title_colour = get_subtitle_colour(coin.colour);
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -33,9 +34,9 @@ pub fn show_change_rep(s: &mut Cursive) {
                             })
                             .unwrap();
                         }))
-                        .child(Button::new("Address book", |s| {
-                            s.add_layer(Dialog::info("Coming soon..."));
-                        })),
+                        .child(Button::new("Address book", 
+                            show_addressbook
+                        )),
                 )
                 .child(DummyView)
                 .child(LinearLayout::horizontal()

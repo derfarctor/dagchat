@@ -5,12 +5,12 @@ use std::fs;
 
 fn write_addressbook(encrypted_bytes: Vec<u8>) -> Result<(), String> {
     if let Some(data_dir) = dirs::data_dir() {
-        let addressbook_file = data_dir.join(paths::DATA_DIR).join(paths::ADDRESSBOOK);
+        let addressbook_file = data_dir.join(paths::DATA_DIR).join(paths::ADDRESS_BOOK);
         let write_res = fs::write(&addressbook_file, encrypted_bytes);
         if write_res.is_err() {
             return Err(format!(
                 "Failed to write to {} file at path: {:?}\nError: {:?}",
-                paths::ADDRESSBOOK,
+                paths::ADDRESS_BOOK,
                 wallets_file,
                 write_res.err()
             ));

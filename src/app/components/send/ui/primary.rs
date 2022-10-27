@@ -1,4 +1,5 @@
 use super::process::process_send;
+use crate::app::components::addressbook::ui::primary::show_addressbook;
 use crate::app::components::inbox::ui::primary::show_inbox;
 use crate::app::themes::get_subtitle_colour;
 use crate::app::{clipboard::*, userdata::UserData};
@@ -39,7 +40,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         return;
     }
 
-    let sub_title_colour = get_subtitle_colour(s);
+    let sub_title_colour = get_subtitle_colour(data.coin.colour);
 
     let mut form_content = LinearLayout::vertical()
         .child(TextView::new(StyledString::styled(
@@ -55,9 +56,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                     })
                     .unwrap();
                 }))
-                .child(Button::new("Address book", |s| {
-                    s.add_layer(Dialog::info("Coming soon..."));
-                })),
+                .child(Button::new("Address book", show_addressbook)),
         )
         .child(DummyView);
     let title_content;
