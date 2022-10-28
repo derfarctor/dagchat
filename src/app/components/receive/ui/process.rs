@@ -19,8 +19,7 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
 
     let amount = receivable.amount;
     let address = account.address.clone();
-    let prefix = data.coin.prefix.clone();
-    let node_url = data.coin.node_url.clone();
+    let coin = data.coin.clone();
     let ticks = 1000;
     let cb = s.cb_sink().clone();
     s.add_layer(Dialog::around(
@@ -33,8 +32,7 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
                     &send_block_hash,
                     amount,
                     &address,
-                    &node_url,
-                    &prefix,
+                    &coin,
                     &counter,
                 );
                 cb.send(Box::new(move |s| {

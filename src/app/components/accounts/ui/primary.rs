@@ -1,6 +1,6 @@
 use super::super::add::add_account;
 use super::{add::add_index, remove::remove_account, select::select_account};
-use crate::app::components::wallets::{save::save_wallets, ui::primary::show_wallets};
+use crate::app::components::{storage::save::save_to_storage, wallets::ui::primary::show_wallets};
 use crate::app::constants::colours::RED;
 use crate::app::userdata::UserData;
 use cursive::event::{Event, EventResult, EventTrigger, MouseEvent};
@@ -20,13 +20,13 @@ pub fn show_accounts(s: &mut Cursive) {
     if !wallet.mnemonic.is_empty() {
         buttons.add_child(Button::new("Show next", move |s| {
             add_account(s, None, &prefix);
-            let save_res = save_wallets(s);
+            let save_res = save_to_storage(s);
             s.pop_layer();
             show_accounts(s);
             if save_res.is_err() {
                 s.add_layer(
                     Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
-                        .title("Error saving wallets data"),
+                        .title("Error saving wallets data."),
                 );
             }
         }));
@@ -41,11 +41,11 @@ pub fn show_accounts(s: &mut Cursive) {
                 return;
             }
             remove_account(s);
-            let save_res = save_wallets(s);
+            let save_res = save_to_storage(s);
             if save_res.is_err() {
                 s.add_layer(
                     Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
-                        .title("Error saving wallets data"),
+                        .title("Error saving wallets data."),
                 );
             }
         }));

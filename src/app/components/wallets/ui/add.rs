@@ -1,7 +1,8 @@
-use super::super::{save::save_wallets, structs::Wallet};
+use super::super::structs::Wallet;
 use super::primary::show_wallets;
 use crate::app::components::{
-    accounts::ui::select::load_current_account, password::ui::primary::set_password,
+    accounts::ui::select::load_current_account,
+    storage::{save::save_to_storage, ui::setup::setup_password},
 };
 use crate::app::{
     clipboard::*,
@@ -222,19 +223,18 @@ where
     let data = &mut s.user_data::<UserData>().unwrap();
     data.wallets.push(wallet);
     data.wallet_idx = data.wallets.len() - 1;
-
     let data = &mut s.user_data::<UserData>().unwrap();
     if data.wallets.len() == 1 && data.password.is_empty() {
-        set_password(s, on_success);
+        setup_password(s, on_success);
     } else {
-        let save_res = save_wallets(s);
+        let save_res = save_to_storage(s);
         if save_res.is_ok() {
             on_success(s);
         } else {
             show_wallets(s);
             s.add_layer(
                 Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
-                    .title("Error saving wallets data"),
+                    .title("Error saving wallets data."),
             );
         }
     }

@@ -2,24 +2,6 @@ pub const LOCAL_WORK: bool = true;
 pub const VERSION: &str = "beta v1.0.0";
 pub const SHOW_TO_DP: usize = 6;
 
-pub mod banano {
-    pub const DEFAULT_REP: &str =
-        "ban_3catgir1p6b1edo5trp7fdb8gsxx4y5ffshbphj73zzy5hu678rsry7srh8b";
-    pub const NODE_URL: &str = "https://vault.banano.cc/api/node-api";
-    pub const WORK_NODE_URL: &str = "https://kaliumapi.appditto.com/api";
-    pub const SEND_THRESH: &str = "FFFFFE0000000000";
-    pub const RECEIVE_THRESH: &str = "FFFFFE0000000000";
-}
-
-pub mod nano {
-    pub const DEFAULT_REP: &str =
-        "nano_3zx7rus19yr5qi5zmkawnzo5ehxr7i73xqghhondhfrzftgstgk4gxbubwfq";
-    pub const NODE_URL: &str = "https://proxy.nanos.cc/proxy";
-    pub const WORK_NODE_URL: &str = "https://app.natrium.io/api";
-    pub const SEND_THRESH: &str = "FFFFFFF800000000";
-    pub const RECEIVE_THRESH: &str = "FFFFFE0000000000";
-}
-
 pub mod crypto {
     pub const SALT_LENGTH: usize = 16;
     pub const IV_LENGTH: usize = 12;
@@ -28,8 +10,7 @@ pub mod crypto {
 pub mod paths {
     pub const DATA_DIR: &str = "dagchat-beta";
     pub const MESSAGES_DIR: &str = "messages";
-    pub const WALLETS: &str = "accounts.dagchat";
-    pub const ADDRESS_BOOK: &str = "addressbook.dagchat";
+    pub const STORAGE: &str = "storage.dagchat";
 }
 
 pub mod colours {

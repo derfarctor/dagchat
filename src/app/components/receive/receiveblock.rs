@@ -1,4 +1,4 @@
-use crate::app::constants::{banano, nano};
+use crate::app::coin::Coin;
 use crate::crypto::{
     blocks::{get_block_hash, get_signed_block},
     conversions::get_32_bytes,
@@ -12,11 +12,10 @@ pub fn receive_block(
     send_block: &str,
     amount: u128,
     address: &str,
-    node_url: &str,
-    addr_prefix: &str,
+    coin: &Coin,
     counter: &Counter,
 ) {
-    let account_info_opt = get_account_info(address, node_url);
+    let account_info_opt = get_account_info(address, &coin.node_url);
     counter.tick(300);
     let mut last_block_hash = [0u8; 32];
     let mut new_balance = amount;
@@ -30,13 +29,7 @@ pub fn receive_block(
         representative = to_public_key(&account_info.representative);
     } else {
         // OPEN BLOCK
-        if addr_prefix == "nano_" {
-            representative = to_public_key(nano::DEFAULT_REP);
-        } else if addr_prefix == "ban_" {
-            representative = to_public_key(banano::DEFAULT_REP);
-        } else {
-            panic!("Unknown network... no default rep to open account.");
-        }
+        representative = to_public_key(&coin.default_rep);
     }
 
     counter.tick(200);
@@ -55,10 +48,10 @@ pub fn receive_block(
         &link,
         new_balance,
         &block_hash,
-        addr_prefix,
+        coin,
         &sub,
     );
     counter.tick(200);
-    publish_block(signed_block, sub, node_url);
+    publish_block(signed_block, sub, &coin.node_url);
     counter.tick(200);
 }

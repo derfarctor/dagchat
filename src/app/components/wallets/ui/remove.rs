@@ -1,6 +1,7 @@
-use super::super::{save::save_wallets, ui::primary::show_wallets};
+use super::super::ui::primary::show_wallets;
 use super::backup::backup_wallet;
 use crate::app::{
+    components::storage::save::save_to_storage,
     constants::{colours::RED, paths},
     userdata::UserData,
 };
@@ -37,7 +38,6 @@ pub fn remove_wallet(s: &mut Cursive) {
         .button("Confirm", move |s| {
             let data = &mut s.user_data::<UserData>().unwrap();
             let wallet = &data.wallets[focus];
-
             // Remove account addresses from lookup if they
             // have no messages linked.
             for account in &wallet.accounts {
@@ -53,14 +53,14 @@ pub fn remove_wallet(s: &mut Cursive) {
                 }
             }
             data.wallets.remove(focus);
-            let save_res = save_wallets(s);
+            let save_res = save_to_storage(s);
             s.pop_layer();
             s.pop_layer();
             show_wallets(s);
             if save_res.is_err() {
                 s.add_layer(
                     Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
-                        .title("Error saving wallets data"),
+                        .title("Error saving wallets data."),
                 );
             }
         })

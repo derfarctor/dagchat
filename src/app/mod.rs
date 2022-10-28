@@ -1,5 +1,5 @@
 mod clipboard;
-mod coin;
+pub mod coin;
 pub mod components;
 pub mod constants;
 mod helpers;

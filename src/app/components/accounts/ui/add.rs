@@ -1,6 +1,6 @@
 use super::super::add::add_account;
 use super::primary::show_accounts;
-use crate::app::components::wallets::save::save_wallets;
+use crate::app::components::storage::save::save_to_storage;
 use crate::app::constants::colours::RED;
 use crate::app::userdata::UserData;
 use cursive::utils::markup::StyledString;
@@ -40,14 +40,14 @@ fn process_idx(s: &mut Cursive, idx: &str) {
             s.add_layer(Dialog::info("This account has already been added!"));
         } else {
             add_account(s, Some(index_res.unwrap()), prefix);
-            let save_res = save_wallets(s);
+            let save_res = save_to_storage(s);
             s.pop_layer();
             s.pop_layer();
             show_accounts(s);
             if save_res.is_err() {
                 s.add_layer(
                     Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))
-                        .title("Error saving wallets data"),
+                        .title("Error saving wallets data."),
                 );
             }
         }

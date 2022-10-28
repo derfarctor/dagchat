@@ -1,4 +1,4 @@
-use crate::app::components::wallets::save::save_wallets;
+use crate::app::components::storage::save::save_to_storage;
 use crate::app::constants::paths;
 use crate::app::userdata::UserData;
 use crate::crypto::aes::encrypt_bytes;
@@ -15,7 +15,7 @@ pub fn create_key(s: &mut Cursive) -> Result<String, String> {
     csprng.fill_bytes(&mut random_id);
     //eprintln!("{} : {}", address, hex::encode(random_id));
     data.lookup.insert(address, hex::encode(random_id));
-    save_wallets(s)?;
+    save_to_storage(s)?;
     Ok(hex::encode(random_id))
 }
 

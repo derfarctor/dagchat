@@ -62,7 +62,7 @@ pub fn show_change_rep(s: &mut Cursive) {
                         return;
                     }
                     let account_info = account_info_opt.unwrap();
-                    change_rep(&private_key, account_info, &rep_address, &coin.node_url, &coin.prefix);
+                    change_rep(&private_key, account_info, &rep_address, &coin);
                     s.pop_layer();
                     show_inbox(s);
                     s.add_layer(Dialog::info("Successfully changed representative!"));

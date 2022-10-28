@@ -1,3 +1,4 @@
+use crate::app::coin::Coin;
 use crate::crypto::{
     address::get_address,
     blocks::{get_block_hash, get_signed_block},
@@ -12,18 +13,17 @@ pub fn send(
     private_key_bytes: &[u8; 32],
     address: String,
     raw: u128,
-    node_url: &str,
-    addr_prefix: &str,
+    coin: &Coin,
     counter: &Counter,
 ) {
     // Derive sender's address
     let sender_pub = ed25519_dalek::PublicKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
     );
-    let sender_address = get_address(sender_pub.as_bytes(), Some(addr_prefix));
+    let sender_address = get_address(sender_pub.as_bytes(), Some(&coin.prefix));
 
     // Safe because account must be opened to have got this far
-    let account_info = get_account_info(&sender_address, node_url).unwrap();
+    let account_info = get_account_info(&sender_address, &coin.node_url).unwrap();
     counter.tick(400);
     let last_block_hash = get_32_bytes(&account_info.frontier);
     let new_balance = get_balance(&account_info) - raw;
@@ -45,10 +45,10 @@ pub fn send(
         &link,
         new_balance,
         &block_hash,
-        addr_prefix,
+        coin,
         &sub,
     );
     counter.tick(100);
-    publish_block(signed_block, sub, node_url);
+    publish_block(signed_block, sub, &coin.node_url);
     counter.tick(400);
 }
