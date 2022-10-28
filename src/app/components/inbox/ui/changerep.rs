@@ -5,7 +5,7 @@ use crate::crypto::address::validate_address;
 use crate::rpc::{accountinfo::get_account_info, changerep::change_rep};
 use cursive::traits::{Nameable, Resizable};
 use cursive::utils::markup::StyledString;
-use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView};
+use cursive::views::{Button, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView};
 use cursive::Cursive;
 
 pub fn show_change_rep(s: &mut Cursive) {
@@ -18,6 +18,7 @@ pub fn show_change_rep(s: &mut Cursive) {
     let address = account.address.clone();
     let sub_title_colour = get_subtitle_colour(coin.colour);
     s.add_layer(
+        HideableView::new(
         Dialog::around(
             LinearLayout::vertical()
             .child(DummyView)
@@ -69,6 +70,6 @@ pub fn show_change_rep(s: &mut Cursive) {
                 }))
                 .child(Button::new("Back", show_inbox))),
         )
-        .title("Change representative"),
+        .title("Change representative")).with_name("hideable"),
     );
 }
