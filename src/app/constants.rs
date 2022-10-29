@@ -1,6 +1,6 @@
 pub const LOCAL_WORK: bool = true;
 pub const VERSION: &str = "beta v1.0.0";
-pub const SHOW_TO_DP: usize = 6;
+pub const SHOW_TO_DP: usize = 16;
 
 pub mod crypto {
     pub const SALT_LENGTH: usize = 16;

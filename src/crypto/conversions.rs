@@ -30,12 +30,13 @@ pub fn whole_to_raw(whole: String, multiplier: &str) -> Option<u128> {
 }
 
 pub fn display_to_dp(raw: u128, dp: usize, multiplier: &str, ticker: &str) -> String {
-    if raw < 1000000 {
-        format!("{} RAW", raw)
+    let raw_string = raw.to_string();
+    let raw = BigDecimal::from_str(&raw_string).unwrap();
+    let multi = BigDecimal::from_str(multiplier).unwrap();
+    let raw_threshold = &multi / BigDecimal::from(10u32.pow(dp as u32));
+    if raw < raw_threshold {
+        return format!("{} RAW", raw);
     } else {
-        let raw_string = raw.to_string();
-        let raw = BigDecimal::from_str(&raw_string).unwrap();
-        let multi = BigDecimal::from_str(multiplier).unwrap();
         let adjusted = raw / multi;
         let s = adjusted.to_string();
 
