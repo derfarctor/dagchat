@@ -1,3 +1,4 @@
+pub mod changepassword;
 pub mod load;
 pub mod readmessage;
 pub mod save;

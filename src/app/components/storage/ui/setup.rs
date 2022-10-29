@@ -1,11 +1,13 @@
-use super::super::changepassword::change_password;
-use crate::app::components::wallets::{save::save_wallets, ui::primary::show_wallets};
+use crate::app::components::{
+    messages::changepassword::change_messages_password, storage::save::save_to_storage,
+    wallets::ui::primary::show_wallets,
+};
 use crate::app::{constants::colours::RED, userdata::UserData};
 use cursive::traits::{Nameable, Resizable};
 use cursive::views::{Dialog, DummyView, EditView, LinearLayout, TextView};
 use cursive::{align::HAlign, utils::markup::StyledString, Cursive};
 
-pub fn set_password<F: 'static>(s: &mut Cursive, on_success: F)
+pub fn setup_password<F: 'static>(s: &mut Cursive, on_success: F)
 where
     F: Fn(&mut Cursive),
 {
@@ -40,23 +42,23 @@ where
                 s.add_layer(Dialog::info("Passwords did not match."));
                 return;
             }
-            let msg_save_res = change_password(s, &password);
+            let messages_save_res = change_messages_password(s, &password);
             let data = &mut s.user_data::<UserData>().unwrap();
             data.password = password.to_string();
-            let acc_save_res = save_wallets(s);
+            let storage_save_res = save_to_storage(s);
             s.pop_layer();
-            if acc_save_res.is_ok() && msg_save_res.is_ok() {
+            if storage_save_res.is_ok() && messages_save_res.is_ok() {
                 on_success(s);
-            } else if acc_save_res.is_err() {
+            } else if storage_save_res.is_err() {
                 show_wallets(s);
-                s.add_layer(Dialog::info(StyledString::styled(acc_save_res.err().unwrap(),
+                s.add_layer(Dialog::info(StyledString::styled(storage_save_res.err().unwrap(),
                     RED,
-                )).title("Fatal error saving wallets"));
-            } else if msg_save_res.is_err() {
+                )).title("Fatal error saving data whilst changing password."));
+            } else if messages_save_res.is_err() {
                 show_wallets(s);
-                s.add_layer(Dialog::info(StyledString::styled(msg_save_res.err().unwrap(),
+                s.add_layer(Dialog::info(StyledString::styled(messages_save_res.err().unwrap(),
                     RED,
-                )).title("Fatal error saving messages"));
+                )).title("Fatal error saving messages whilst changing password."));
             }
         })
         .button("Info", |s| {

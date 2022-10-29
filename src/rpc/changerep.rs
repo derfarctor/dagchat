@@ -1,5 +1,6 @@
 use super::accountinfo::{get_balance, AccountInfoResponse};
 use super::process::publish_block;
+use crate::app::coin::Coin;
 use crate::crypto::blocks::{get_block_hash, get_signed_block};
 use crate::crypto::conversions::get_32_bytes;
 use crate::crypto::keys::to_public_key;
@@ -8,8 +9,7 @@ pub fn change_rep(
     private_key_bytes: &[u8; 32],
     account_info: AccountInfoResponse,
     rep_address: &str,
-    node_url: &str,
-    addr_prefix: &str,
+    coin: &Coin,
 ) {
     let last_block_hash = get_32_bytes(&account_info.frontier);
     let balance = get_balance(&account_info);
@@ -30,8 +30,8 @@ pub fn change_rep(
         &link,
         balance,
         &block_hash,
-        addr_prefix,
+        coin,
         &sub,
     );
-    publish_block(block, sub, node_url);
+    publish_block(block, sub, &coin.node_url);
 }

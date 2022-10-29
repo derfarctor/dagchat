@@ -17,10 +17,9 @@ pub fn process_send(s: &mut Cursive, raw: u128, address: String, message: String
     let ticks = 1000;
     let cb = s.cb_sink().clone();
     let data = &mut s.user_data::<UserData>().unwrap();
-    let node_url = data.coin.node_url.clone();
     let wallet = &data.wallets[data.wallet_idx];
     let private_key_bytes = wallet.accounts[wallet.acc_idx].private_key;
-    let prefix = data.coin.prefix.clone();
+    let coin = data.coin.clone();
     s.pop_layer();
     s.add_layer(Dialog::around(
         ProgressBar::new()
@@ -29,22 +28,14 @@ pub fn process_send(s: &mut Cursive, raw: u128, address: String, message: String
                 let with_message = !message.is_empty();
                 let mut hash = String::from("");
                 if !with_message {
-                    send(
-                        &private_key_bytes,
-                        address.clone(),
-                        raw,
-                        &node_url,
-                        &prefix,
-                        &counter,
-                    );
+                    send(&private_key_bytes, address.clone(), raw, &coin, &counter);
                 } else {
                     hash = send_message(
                         &private_key_bytes,
                         address.clone(),
                         raw,
                         message.clone(),
-                        &node_url,
-                        &prefix,
+                        &coin,
                         &counter,
                     );
                 }

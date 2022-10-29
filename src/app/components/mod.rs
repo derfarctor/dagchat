@@ -1,8 +1,9 @@
 pub mod accounts;
+pub mod addressbook;
 pub mod inbox;
 pub mod messages;
-pub mod password;
 pub mod receive;
 pub mod send;
+pub mod storage;
 pub mod title;
 pub mod wallets;

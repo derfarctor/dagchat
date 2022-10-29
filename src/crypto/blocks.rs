@@ -1,6 +1,6 @@
 use super::{address::get_address, pow::*};
-
-use crate::app::constants::{banano, nano, LOCAL_WORK};
+use crate::app::coin::Coin;
+use crate::app::constants::LOCAL_WORK;
 use crate::rpc::blockinfo::Block;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
@@ -42,7 +42,7 @@ pub fn get_signed_block(
     link: &[u8; 32],
     balance: u128,
     block_hash: &[u8; 32],
-    addr_prefix: &str,
+    coin: &Coin,
     sub: &str,
 ) -> Block {
     let secret = ed25519_dalek::SecretKey::from_bytes(priv_k).unwrap();
@@ -60,22 +60,12 @@ pub fn get_signed_block(
         if previous_hash == &[0u8; 32] {
             previous_hash = public.as_bytes();
         }
-        let threshold;
-        if addr_prefix == "nano_" {
-            if sub == "receive" {
-                threshold = u64::from_str_radix(nano::RECEIVE_THRESH, 16).unwrap();
-            } else {
-                threshold = u64::from_str_radix(nano::SEND_THRESH, 16).unwrap();
-            }
-        } else if addr_prefix == "ban_" {
-            if sub == "receive" {
-                threshold = u64::from_str_radix(banano::RECEIVE_THRESH, 16).unwrap();
-            } else {
-                threshold = u64::from_str_radix(banano::SEND_THRESH, 16).unwrap();
-            }
+        let threshold = if sub == "receive" {
+            u64::from_str_radix(&coin.receive_thresh, 16).unwrap()
         } else {
-            panic!("Unknown coin threshold");
-        }
+            u64::from_str_radix(&coin.send_thresh, 16).unwrap()
+        };
+
         generate_work(previous_hash, threshold)
     } else {
         String::from("")
@@ -83,9 +73,9 @@ pub fn get_signed_block(
 
     let block = Block {
         type_name: String::from("state"),
-        account: get_address(public.as_bytes(), Some(addr_prefix)),
+        account: get_address(public.as_bytes(), Some(&coin.prefix)),
         previous: hex::encode(previous),
-        representative: get_address(rep, Some(addr_prefix)),
+        representative: get_address(rep, Some(&coin.prefix)),
         balance: balance.to_string(),
         link: hex::encode(link),
         work,

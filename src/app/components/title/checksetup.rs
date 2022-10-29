@@ -1,4 +1,4 @@
-use crate::app::components::wallets::load::load_wallets;
+use crate::app::components::storage::ui::primary::show_get_password;
 use crate::app::constants::paths;
 use cursive::views::Dialog;
 use cursive::Cursive;
@@ -32,7 +32,7 @@ pub fn check_setup(s: &mut Cursive) {
                 return;
             }
         }
-        load_wallets(s, dagchat_dir);
+        show_get_password(s, dagchat_dir);
     } else {
         s.add_layer(Dialog::info(
             "Error locating the application data folder on your system.",

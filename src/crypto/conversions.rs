@@ -31,13 +31,13 @@ pub fn whole_to_raw(whole: String, multiplier: &str) -> Option<u128> {
 
 pub fn display_to_dp(raw: u128, dp: usize, multiplier: &str, ticker: &str) -> String {
     if raw < 1000000 {
-        return format!("{} RAW", raw);
+        format!("{} RAW", raw)
     } else {
         let raw_string = raw.to_string();
         let raw = BigDecimal::from_str(&raw_string).unwrap();
         let multi = BigDecimal::from_str(multiplier).unwrap();
         let adjusted = raw / multi;
-        let mut s = adjusted.to_string();
+        let s = adjusted.to_string();
 
         // If decimal part, trim to dp
         if s.contains('.') {
@@ -46,10 +46,9 @@ pub fn display_to_dp(raw: u128, dp: usize, multiplier: &str, ticker: &str) -> St
             if real_dp > dp {
                 parts[1] = parts[1].get(0..dp).unwrap();
             }
-            s = format!("{}.{}{}", parts[0], parts[1], ticker);
+            format!("{}.{}{}", parts[0], parts[1], ticker)
         } else {
-            s = format!("{}{}", s, ticker);
+            format!("{}{}", s, ticker)
         }
-        s
     }
 }

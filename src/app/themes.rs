@@ -1,6 +1,4 @@
 use super::constants::colours::*;
-use super::userdata::UserData;
-
 use cursive::theme::{BaseColor, BorderStyle, Color, PaletteColor, Theme};
 use cursive::Cursive;
 
@@ -54,11 +52,10 @@ fn get_nano_theme(mut base: Theme, v: bool) -> Theme {
     base
 }
 
-pub fn get_subtitle_colour(s: &mut Cursive) -> Color {
-    let data = &s.user_data::<UserData>().unwrap();
-    if data.coin.colour == YELLOW {
+pub fn get_subtitle_colour(coin_colour: Color) -> Color {
+    if coin_colour == YELLOW {
         OFF_WHITE
     } else {
-        data.coin.colour
+        coin_colour
     }
 }

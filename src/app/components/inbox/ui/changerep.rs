@@ -1,10 +1,11 @@
 use super::primary::show_inbox;
+use crate::app::components::addressbook::ui::primary::show_addressbook;
 use crate::app::{clipboard::paste_clip, themes::get_subtitle_colour, userdata::UserData};
 use crate::crypto::address::validate_address;
 use crate::rpc::{accountinfo::get_account_info, changerep::change_rep};
 use cursive::traits::{Nameable, Resizable};
 use cursive::utils::markup::StyledString;
-use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView};
+use cursive::views::{Button, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView};
 use cursive::Cursive;
 
 pub fn show_change_rep(s: &mut Cursive) {
@@ -15,8 +16,9 @@ pub fn show_change_rep(s: &mut Cursive) {
     let private_key = account.private_key;
     let coin = data.coin.clone();
     let address = account.address.clone();
-    let sub_title_colour = get_subtitle_colour(s);
+    let sub_title_colour = get_subtitle_colour(coin.colour);
     s.add_layer(
+        HideableView::new(
         Dialog::around(
             LinearLayout::vertical()
             .child(DummyView)
@@ -33,9 +35,9 @@ pub fn show_change_rep(s: &mut Cursive) {
                             })
                             .unwrap();
                         }))
-                        .child(Button::new("Address book", |s| {
-                            s.add_layer(Dialog::info("Coming soon..."));
-                        })),
+                        .child(Button::new("Address book", 
+                            show_addressbook
+                        )),
                 )
                 .child(DummyView)
                 .child(LinearLayout::horizontal()
@@ -61,13 +63,13 @@ pub fn show_change_rep(s: &mut Cursive) {
                         return;
                     }
                     let account_info = account_info_opt.unwrap();
-                    change_rep(&private_key, account_info, &rep_address, &coin.node_url, &coin.prefix);
+                    change_rep(&private_key, account_info, &rep_address, &coin);
                     s.pop_layer();
                     show_inbox(s);
                     s.add_layer(Dialog::info("Successfully changed representative!"));
                 }))
                 .child(Button::new("Back", show_inbox))),
         )
-        .title("Change representative"),
+        .title("Change representative")).with_name("hideable"),
     );
 }

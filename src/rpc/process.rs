@@ -21,7 +21,7 @@ pub fn post_node(body: String, node_url: &str) -> String {
         .post(node_url)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
-        .body(body.clone())
+        .body(body)
         .send()
         .unwrap();
 

@@ -1,9 +1,10 @@
 use super::process::process_send;
+use crate::app::components::addressbook::ui::primary::show_addressbook;
 use crate::app::components::inbox::ui::primary::show_inbox;
 use crate::app::themes::get_subtitle_colour;
 use crate::app::{clipboard::*, userdata::UserData};
 use crate::crypto::{address::validate_address, conversions::whole_to_raw};
-use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView};
+use cursive::views::{Button, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView};
 use cursive::{
     align::HAlign,
     traits::{Nameable, Resizable},
@@ -39,7 +40,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         return;
     }
 
-    let sub_title_colour = get_subtitle_colour(s);
+    let sub_title_colour = get_subtitle_colour(data.coin.colour);
 
     let mut form_content = LinearLayout::vertical()
         .child(TextView::new(StyledString::styled(
@@ -55,9 +56,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                     })
                     .unwrap();
                 }))
-                .child(Button::new("Address book", |s| {
-                    s.add_layer(Dialog::info("Coming soon..."));
-                })),
+                .child(Button::new("Address book", show_addressbook)),
         )
         .child(DummyView);
     let title_content;
@@ -167,8 +166,11 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
             .child(Button::new("Back", show_inbox)),
     );
     s.add_layer(
-        Dialog::around(form_content)
-            .title(title_content)
-            .padding_lrtb(1, 1, 1, 0),
+        HideableView::new(
+            Dialog::around(form_content)
+                .title(title_content)
+                .padding_lrtb(1, 1, 1, 0),
+        )
+        .with_name("hideable"),
     );
 }

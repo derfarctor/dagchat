@@ -4,11 +4,10 @@ use crate::crypto::aes::{decrypt_bytes, encrypt_bytes};
 use cursive::Cursive;
 use std::fs;
 
-pub fn change_password(s: &mut Cursive, new_password: &str) -> Result<(), String> {
+pub fn change_messages_password(s: &mut Cursive, new_password: &str) -> Result<(), String> {
     let data = &mut s.user_data::<UserData>().unwrap();
     let data_dir = dirs::data_dir().unwrap();
     let messages_dir = data_dir.join(paths::DATA_DIR).join(paths::MESSAGES_DIR);
-
     for (_a, lookup_key) in data.lookup.iter() {
         let filename = format!("{}.dagchat", lookup_key);
         let messages_file = messages_dir.join(filename);

@@ -1,3 +1,4 @@
+use crate::app::coin::Coin;
 use crate::crypto::{
     address::get_address, blocks::*, conversions::get_32_bytes, keys::to_public_key,
 };
@@ -9,8 +10,7 @@ pub fn send_message(
     target_address: String,
     raw: u128,
     mut message: String,
-    node_url: &str,
-    addr_prefix: &str,
+    coin: &Coin,
     counter: &Counter,
 ) -> String {
     let public_key_bytes = to_public_key(&target_address);
@@ -34,11 +34,11 @@ pub fn send_message(
     let sender_pub = ed25519_dalek::PublicKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
     );
-    let sender_address = get_address(sender_pub.as_bytes(), Some(addr_prefix));
+    let sender_address = get_address(sender_pub.as_bytes(), Some(&coin.prefix));
 
     // Set up the previous block hash and balance to start publishing blocks
     // Also note the representative from before sending, in order to change back afterwards
-    let account_info = get_account_info(&sender_address, node_url).unwrap();
+    let account_info = get_account_info(&sender_address, &coin.node_url).unwrap();
     let mut last_block_hash = get_32_bytes(&account_info.frontier);
     let mut balance = get_balance(&account_info);
     let representative = to_public_key(&account_info.representative);
@@ -76,14 +76,14 @@ pub fn send_message(
             &link,
             balance,
             &block_hash,
-            addr_prefix,
+            coin,
             &sub,
         );
         if block_num == 0 {
             first_block_hash = block_hash;
         }
         last_block_hash = block_hash;
-        publish_block(block, sub.clone(), node_url);
+        publish_block(block, sub.clone(), &coin.node_url);
     }
     // Change representative to what it was at the start
     link = [0u8; 32];
@@ -102,9 +102,9 @@ pub fn send_message(
         &link,
         balance,
         &block_hash,
-        addr_prefix,
+        coin,
         &sub,
     );
-    publish_block(block, sub, node_url);
+    publish_block(block, sub, &coin.node_url);
     hex::encode(last_block_hash)
 }
