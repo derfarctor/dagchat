@@ -1,6 +1,5 @@
 use super::constants::colours::OFF_WHITE;
 use super::userdata::UserData;
-use arboard::Clipboard;
 use cursive::theme::{BaseColor, Color};
 use cursive::traits::Resizable;
 use cursive::utils::markup::StyledString;
@@ -8,9 +7,8 @@ use cursive::views::{Dialog, TextView};
 use cursive::Cursive;
 
 pub fn copy_to_clip(s: &mut Cursive, string: String) {
-    let mut clipboard: Clipboard = Clipboard::new().unwrap();
-    let data = &s.user_data::<UserData>().unwrap();
-    let copied = clipboard.set_text(string.clone());
+    let data = &mut s.user_data::<UserData>().unwrap();
+    let copied = data.clipboard.set_text(string.clone());
     if copied.is_err() {
         s.add_layer(Dialog::info(StyledString::styled(
             "Error copying to clipboard.",
@@ -30,9 +28,9 @@ pub fn copy_to_clip(s: &mut Cursive, string: String) {
     }
 }
 
-pub fn paste_clip() -> String {
-    let mut clipboard: Clipboard = Clipboard::new().unwrap();
-    clipboard
+pub fn paste_clip(s: &mut Cursive) -> String {
+    let data = &mut s.user_data::<UserData>().unwrap();
+    data.clipboard
         .get_text()
         .unwrap_or_else(|_| String::from("Failed to read clipboard."))
 }

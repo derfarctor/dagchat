@@ -11,7 +11,7 @@ use crate::app::{
     userdata::UserData,
 };
 use crate::crypto::mnemonic::{seed_to_mnemonic, validate_mnemonic};
-use cursive::views::{Dialog, DummyView, EditView, LinearLayout, TextView};
+use cursive::views::{Dialog, DummyView, EditView, LinearLayout, TextView, ViewRef};
 use cursive::{align::HAlign, traits::*, utils::markup::StyledString, Cursive};
 use rand::RngCore;
 
@@ -75,10 +75,8 @@ fn show_from_mnemonic(s: &mut Cursive, name: String) {
                 process_from_mnemonic(s, &mnemonic, name.clone());
             })
             .button("Paste", |s| {
-                s.call_on_name("mnemonic", |view: &mut EditView| {
-                    view.set_content(paste_clip());
-                })
-                .unwrap();
+                let mut mnemonic: ViewRef<EditView> = s.find_name("mnemonic").unwrap();
+                mnemonic.set_content(paste_clip(s));
             })
             .button("Back", show_wallets),
     );
@@ -133,10 +131,8 @@ fn from_seedorkey(s: &mut Cursive, seed_or_key: String, name: String) {
                 process_from_seedorkey(s, sork_raw.to_string(), &seed_or_key, name.clone());
             })
             .button("Paste", |s| {
-                s.call_on_name("seedorkey", |view: &mut EditView| {
-                    view.set_content(paste_clip());
-                })
-                .unwrap();
+                let mut seedorkey: ViewRef<EditView> = s.find_name("seedorkey").unwrap();
+                seedorkey.set_content(paste_clip(s));
             })
             .button("Back", show_wallets),
     );

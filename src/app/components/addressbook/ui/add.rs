@@ -4,7 +4,7 @@ use crate::app::{
     helpers::go_back, themes::get_subtitle_colour, userdata::UserData,
 };
 use cursive::traits::{Nameable, Resizable};
-use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView};
+use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView, ViewRef};
 use cursive::{utils::markup::StyledString, Cursive};
 
 pub fn add_addressbook(s: &mut Cursive) {
@@ -17,10 +17,8 @@ pub fn add_addressbook(s: &mut Cursive) {
         )))
         .child(TextArea::new().with_name("contactname").max_width(66))
         .child(LinearLayout::horizontal().child(Button::new("Paste", |s| {
-            s.call_on_name("contactname", |view: &mut TextArea| {
-                view.set_content(paste_clip());
-            })
-            .unwrap();
+            let mut contactname: ViewRef<TextArea> = s.find_name("contactname").unwrap();
+            contactname.set_content(paste_clip(s));
         })))
         .child(DummyView)
         .child(TextView::new(StyledString::styled(
@@ -29,10 +27,8 @@ pub fn add_addressbook(s: &mut Cursive) {
         )))
         .child(TextArea::new().with_name("contactaddress").max_width(80))
         .child(LinearLayout::horizontal().child(Button::new("Paste", |s| {
-            s.call_on_name("contactaddress", |view: &mut TextArea| {
-                view.set_content(paste_clip());
-            })
-            .unwrap();
+            let mut contactaddress: ViewRef<TextArea> = s.find_name("contactaddress").unwrap();
+            contactaddress.set_content(paste_clip(s));
         })))
         .child(DummyView)
         .child(DummyView)

@@ -4,7 +4,9 @@ use crate::app::components::inbox::ui::primary::show_inbox;
 use crate::app::themes::get_subtitle_colour;
 use crate::app::{clipboard::*, userdata::UserData};
 use crate::crypto::{address::validate_address, conversions::whole_to_raw};
-use cursive::views::{Button, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView};
+use cursive::views::{
+    Button, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView, ViewRef,
+};
 use cursive::{
     align::HAlign,
     traits::{Nameable, Resizable},
@@ -51,10 +53,8 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         .child(
             LinearLayout::horizontal()
                 .child(Button::new("Paste", |s| {
-                    s.call_on_name("address", |view: &mut TextArea| {
-                        view.set_content(paste_clip());
-                    })
-                    .unwrap();
+                    let mut address: ViewRef<TextArea> = s.find_name("address").unwrap();
+                    address.set_content(paste_clip(s));
                 }))
                 .child(Button::new("Address book", show_addressbook)),
         )

@@ -2,7 +2,7 @@ use super::super::structs::Filter;
 use super::primary::show_messages;
 use crate::app::{clipboard::paste_clip, constants::colours::OFF_WHITE, helpers::go_back};
 use cursive::traits::{Nameable, Resizable};
-use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView};
+use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView, ViewRef};
 use cursive::{align::HAlign, utils::markup::StyledString, Cursive};
 
 pub fn show_search(s: &mut Cursive, filter: Filter) {
@@ -14,10 +14,8 @@ pub fn show_search(s: &mut Cursive, filter: Filter) {
         )))
         .child(TextArea::new().with_name("search").max_width(66))
         .child(LinearLayout::horizontal().child(Button::new("Paste", |s| {
-            s.call_on_name("search", |view: &mut TextArea| {
-                view.set_content(paste_clip());
-            })
-            .unwrap();
+            let mut search: ViewRef<TextArea> = s.find_name("search").unwrap();
+            search.set_content(paste_clip(s));
         })));
     s.add_layer(
         Dialog::around(content)

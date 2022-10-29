@@ -5,7 +5,9 @@ use crate::crypto::address::validate_address;
 use crate::rpc::{accountinfo::get_account_info, changerep::change_rep};
 use cursive::traits::{Nameable, Resizable};
 use cursive::utils::markup::StyledString;
-use cursive::views::{Button, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView};
+use cursive::views::{
+    Button, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView, ViewRef,
+};
 use cursive::Cursive;
 
 pub fn show_change_rep(s: &mut Cursive) {
@@ -30,10 +32,8 @@ pub fn show_change_rep(s: &mut Cursive) {
                 .child(
                     LinearLayout::horizontal()
                         .child(Button::new("Paste", |s| {
-                            s.call_on_name("address", |view: &mut TextArea| {
-                                view.set_content(paste_clip());
-                            })
-                            .unwrap();
+                            let mut address: ViewRef<TextArea> = s.find_name("address").unwrap();
+                            address.set_content(paste_clip(s));
                         }))
                         .child(Button::new("Address book", 
                             show_addressbook
