@@ -31,7 +31,7 @@ pub fn show_addressbook(s: &mut Cursive) {
     let mut form_content = LinearLayout::horizontal();
 
     let mut select = SelectView::<String>::new().on_submit(select_addressbook);
-    for (name, address) in &data.addressbook {
+    for (name, _address) in &data.addressbook {
         select.add_item_str(name);
     }
     let select = OnEventView::new(select).on_pre_event_inner(EventTrigger::mouse(), |s, e| {
@@ -77,9 +77,3 @@ pub fn show_addressbook(s: &mut Cursive) {
         .title("Address Book"),
     );
 }
-
-/*
-s.call_on_name("address", |view: &mut TextArea| {
-    view.set_content("This is a test");
-})
-.unwrap(); */
