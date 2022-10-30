@@ -48,7 +48,7 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
     }
     counter.tick(50);
     let root_blocks_info = get_blocks_info(root_hashes, node_url);
-    counter.tick(200);
+    counter.tick(100);
     let raw_root_blocks = root_blocks_info.blocks.data;
 
     let mut incoming: Vec<Receivable> = vec![];

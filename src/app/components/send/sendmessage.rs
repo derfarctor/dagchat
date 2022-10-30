@@ -19,13 +19,11 @@ pub fn send_message(
         message.push(' ');
     }
     let public_key = ecies_ed25519::PublicKey::from_bytes(&public_key_bytes).unwrap();
-    counter.tick(50);
 
     let mut csprng = rand::thread_rng();
     let encrypted_bytes =
         ecies_ed25519::encrypt(&public_key, message.as_bytes(), &mut csprng).unwrap();
     let blocks_needed = ((60 + message.len()) / 32) + 1;
-    counter.tick(50);
 
     let mut block_data = [0u8; 32];
     let mut first_block_hash = [0u8; 32];

@@ -23,12 +23,12 @@ pub fn send(
 
     // Safe because account must be opened to have got this far
     let account_info = get_account_info(&sender_address, &coin.network.node_url).unwrap();
-    counter.tick(400);
+
     let last_block_hash = get_32_bytes(&account_info.frontier);
     let new_balance = get_balance(&account_info) - raw;
     let representative = to_public_key(&account_info.representative);
     let link = to_public_key(&address);
-    counter.tick(100);
+    counter.tick(200);
     let sub = String::from("send");
     let block_hash = get_block_hash(
         private_key_bytes,
@@ -47,7 +47,6 @@ pub fn send(
         coin,
         &sub,
     );
-    counter.tick(100);
+    counter.tick(500);
     publish_block(signed_block, sub, &coin.network.node_url);
-    counter.tick(400);
 }

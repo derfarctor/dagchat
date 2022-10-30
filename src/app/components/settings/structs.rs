@@ -33,9 +33,3 @@ impl Network {
         }
     }
 }
-pub struct Networks;
-
-impl Networks {
-    pub const NANO: usize = 0;
-    pub const BANANO: usize = 1;
-}

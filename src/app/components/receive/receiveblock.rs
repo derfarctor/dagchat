@@ -51,7 +51,6 @@ pub fn receive_block(
         coin,
         &sub,
     );
-    counter.tick(200);
+    counter.tick(400);
     publish_block(signed_block, sub, &coin.network.node_url);
-    counter.tick(200);
 }

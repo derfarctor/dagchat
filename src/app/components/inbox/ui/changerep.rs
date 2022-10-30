@@ -58,7 +58,7 @@ pub fn show_change_rep(s: &mut Cursive) {
                         return;
                     }
                     let account_info_opt = get_account_info(&address, &coin.network.node_url);
-                    if account_info_opt.is_ok() {
+                    if account_info_opt.is_err() {
                         s.add_layer(Dialog::info(format!("You can't change representatives until you open your account by receiving some {}.", coin.name)));
                         return;
                     }

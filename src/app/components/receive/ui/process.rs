@@ -26,7 +26,6 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
         ProgressBar::new()
             .range(0, ticks)
             .with_task(move |counter| {
-                counter.tick(100);
                 receive_block(
                     &private_key,
                     &send_block_hash,
