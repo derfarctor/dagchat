@@ -1,4 +1,7 @@
 use super::structs::*;
+use crate::app::coin::Coin;
+use crate::app::components::accounts::ui::add;
+use crate::app::components::settings::structs::Network;
 use crate::app::components::wallets::ui::primary::show_wallets;
 use crate::app::constants::{colours::RED, paths};
 use crate::app::userdata::UserData;
@@ -16,14 +19,74 @@ pub fn load_with_password(s: &mut Cursive, password: &str) {
     data.password = password.to_string();
     let storage_data: Result<StorageData, _> = bincode::deserialize(&bytes.unwrap()[..]);
     if let Ok(storage_data) = storage_data {
-        data.wallets =
-            bincode::deserialize(&storage_data.storage_bytes[StorageElements::WALLETS]).unwrap();
-        data.lookup =
-            bincode::deserialize(&storage_data.storage_bytes[StorageElements::LOOKUP]).unwrap();
-        data.addressbook =
-            bincode::deserialize(&storage_data.storage_bytes[StorageElements::ADDRESSBOOK])
-                .unwrap();
+        let mut errors = String::from("");
+
+        // Load wallets
+        if storage_data.storage_bytes.len() - 1 >= StorageElements::WALLETS {
+            if let Ok(wallets) =
+                bincode::deserialize(&storage_data.storage_bytes[StorageElements::WALLETS])
+            {
+                data.wallets = wallets;
+            } else {
+                errors.push_str(" wallets,");
+            }
+        } else {
+            errors.push_str(" wallets,");
+        }
+
+        // Load messages lookup HashMap
+        if storage_data.storage_bytes.len() - 1 >= StorageElements::LOOKUP {
+            if let Ok(lookup) =
+                bincode::deserialize(&storage_data.storage_bytes[StorageElements::LOOKUP])
+            {
+                data.lookup = lookup;
+            } else {
+                errors.push_str(" messages,");
+            }
+        } else {
+            errors.push_str(" messages,");
+        }
+
+        // Load address book
+        if storage_data.storage_bytes.len() - 1 >= StorageElements::ADDRESSBOOK {
+            if let Ok(addressbook) =
+                bincode::deserialize(&storage_data.storage_bytes[StorageElements::ADDRESSBOOK])
+            {
+                data.addressbook = addressbook;
+            } else {
+                errors.push_str(" address book,");
+            }
+        } else {
+            errors.push_str(" address book,");
+        }
+
+        // Load networks
+        if storage_data.storage_bytes.len() - 1 >= StorageElements::NETWORKS {
+            if let Ok(mut networks) = bincode::deserialize::<Vec<Network>>(
+                &storage_data.storage_bytes[StorageElements::NETWORKS],
+            ) {
+                for coin in 0..data.coins.len() {
+                    data.coins[coin].network = networks.remove(0);
+                }
+            } else {
+                errors.push_str(" networks,");
+            }
+        } else {
+            errors.push_str(" networks,");
+        }
+
         show_wallets(s);
+        if !errors.is_empty() {
+            let errors: String = errors.chars().into_iter().take(errors.len() - 1).collect();
+            s.add_layer(Dialog::info(StyledString::styled(
+            format!(
+                "Error(s) encountered parsing the{} from {} file. File was either corrupted or edited outside of dagchat.",
+                errors,
+                paths::STORAGE
+            ),
+            RED,
+        )));
+        }
     } else {
         show_wallets(s);
         s.add_layer(Dialog::info(StyledString::styled(

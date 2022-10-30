@@ -52,18 +52,19 @@ pub fn show_messages(s: &mut Cursive, mut filter: Filter) {
             a = "Received";
             b = "From:";
         }
+        let colour = data.coins[data.coin_idx].colour;
         let mut message_info = StyledString::styled(format!("{} at: ", a), OFF_WHITE);
-        message_info.append(StyledString::styled(timestamp_str, data.coin.colour));
+        message_info.append(StyledString::styled(timestamp_str, colour));
         message_info.append(StyledString::styled(format!("\n{} ", b), OFF_WHITE));
-        message_info.append(StyledString::styled(&message.address, data.coin.colour));
+        message_info.append(StyledString::styled(&message.address, colour));
         if !message.plaintext.is_empty() {
             message_info.append(StyledString::styled("\nMessage: ", OFF_WHITE));
-            message_info.append(StyledString::styled(&message.plaintext, data.coin.colour));
+            message_info.append(StyledString::styled(&message.plaintext, colour));
         }
         message_info.append(StyledString::styled("\nAmount: ", OFF_WHITE));
         message_info.append(StyledString::styled(
             format!("{}\n\n", message.amount),
-            data.coin.colour,
+            colour,
         ));
 
         if !search_term.as_str().is_empty() {
@@ -110,7 +111,7 @@ pub fn show_messages(s: &mut Cursive, mut filter: Filter) {
         content.add_child(DummyView);
         content.add_child(TextView::new(StyledString::styled(
             "No messages found.",
-            data.coin.colour,
+            data.coins[data.coin_idx].colour,
         )));
     }
     content.add_child(

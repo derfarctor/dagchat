@@ -18,8 +18,8 @@ use rand::RngCore;
 pub fn add_wallet(s: &mut Cursive) {
     s.pop_layer();
     let data = &s.user_data::<UserData>().unwrap();
-    let coin = &data.coin.name;
-    let colour = data.coin.colour;
+    let coin = &data.coins[data.coin_idx].name;
+    let colour = data.coins[data.coin_idx].colour;
 
     let name_input = EditView::new()
         .content(format!("Default {}", data.wallets.len() + 1))
@@ -89,7 +89,12 @@ fn process_from_mnemonic(s: &mut Cursive, mnemonic: &str, name: String) {
     if !mnemonic.is_empty() && seed.is_some() {
         let seed_bytes = seed.unwrap();
         let data = &s.user_data::<UserData>().unwrap();
-        let wallet = Wallet::new(mnemonic.to_string(), seed_bytes, name, &data.coin.prefix);
+        let wallet = Wallet::new(
+            mnemonic.to_string(),
+            seed_bytes,
+            name,
+            &data.coins[data.coin_idx].prefix,
+        );
         setup_wallet(s, wallet, |s| {
             import_success(s, "Successfully imported wallet from mnemonic phrase.")
         });
@@ -160,9 +165,14 @@ fn process_from_seedorkey(s: &mut Cursive, sork_raw: String, seed_or_key: &str, 
     let data = &s.user_data::<UserData>().unwrap();
     let wallet = if seed_or_key == "seed" {
         let mnemonic = seed_to_mnemonic(&sork_bytes);
-        Wallet::new(mnemonic, sork_bytes, name, &data.coin.prefix)
+        Wallet::new(
+            mnemonic,
+            sork_bytes,
+            name,
+            &data.coins[data.coin_idx].prefix,
+        )
     } else {
-        Wallet::new_key(sork_bytes, name, &data.coin.prefix)
+        Wallet::new_key(sork_bytes, name, &data.coins[data.coin_idx].prefix)
     };
     let content = format!("Successfully imported wallet from {}.", seed_or_key);
     setup_wallet(s, wallet, move |s| import_success(s, &content));
@@ -171,7 +181,7 @@ fn process_from_seedorkey(s: &mut Cursive, sork_raw: String, seed_or_key: &str, 
 pub fn new_wallet_name(s: &mut Cursive) {
     s.pop_layer();
     let data = &s.user_data::<UserData>().unwrap();
-    let colour = data.coin.colour;
+    let colour = data.coins[data.coin_idx].colour;
     let name_input = EditView::new()
         .on_submit(new_wallet)
         .content(format!("Default {}", data.wallets.len() + 1))
@@ -206,7 +216,7 @@ pub fn new_wallet(s: &mut Cursive, name: &str) {
         mnemonic.clone(),
         seed_bytes,
         name.to_string(),
-        &data.coin.prefix,
+        &data.coins[data.coin_idx].prefix,
     );
     setup_wallet(s, wallet, move |s| {
         create_success(s, mnemonic.clone(), hex::encode(seed_bytes))
@@ -250,9 +260,12 @@ fn import_success(s: &mut Cursive, content: &str) {
 fn create_success(s: &mut Cursive, mnemonic: String, seed: String) {
     s.pop_layer();
     let data = &mut s.user_data::<UserData>().unwrap();
-    let mut content = StyledString::styled("\nMnemonic\n", data.coin.colour);
+    let mut content = StyledString::styled("\nMnemonic\n", data.coins[data.coin_idx].colour);
     content.append(StyledString::styled(&mnemonic, OFF_WHITE));
-    content.append(StyledString::styled("\n\nSeed\n", data.coin.colour));
+    content.append(StyledString::styled(
+        "\n\nSeed\n",
+        data.coins[data.coin_idx].colour,
+    ));
     content.append(StyledString::styled(&seed, OFF_WHITE));
     s.add_layer(
         Dialog::around(TextView::new(content).max_width(80))

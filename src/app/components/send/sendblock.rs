@@ -8,7 +8,6 @@ use crate::crypto::{
 use crate::rpc::accountinfo::{get_account_info, get_balance};
 use crate::rpc::process::publish_block;
 use cursive::utils::Counter;
-
 pub fn send(
     private_key_bytes: &[u8; 32],
     address: String,
@@ -23,7 +22,7 @@ pub fn send(
     let sender_address = get_address(sender_pub.as_bytes(), Some(&coin.prefix));
 
     // Safe because account must be opened to have got this far
-    let account_info = get_account_info(&sender_address, &coin.node_url).unwrap();
+    let account_info = get_account_info(&sender_address, &coin.network.node_url).unwrap();
     counter.tick(400);
     let last_block_hash = get_32_bytes(&account_info.frontier);
     let new_balance = get_balance(&account_info) - raw;
@@ -49,6 +48,6 @@ pub fn send(
         &sub,
     );
     counter.tick(100);
-    publish_block(signed_block, sub, &coin.node_url);
+    publish_block(signed_block, sub, &coin.network.node_url);
     counter.tick(400);
 }

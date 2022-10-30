@@ -4,6 +4,7 @@ pub mod inbox;
 pub mod messages;
 pub mod receive;
 pub mod send;
+pub mod settings;
 pub mod storage;
 pub mod title;
 pub mod wallets;

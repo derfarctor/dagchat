@@ -24,7 +24,7 @@ pub fn select_wallet(s: &mut Cursive, _: &str) {
         accounts.push(Account::with_index(
             &data.wallets[focus],
             *index,
-            &data.coin.prefix,
+            &data.coins[data.coin_idx].prefix,
         ));
     }
     data.wallets[focus].accounts = accounts;

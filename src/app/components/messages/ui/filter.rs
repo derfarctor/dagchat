@@ -37,7 +37,10 @@ pub fn show_filter(s: &mut Cursive, filter: Filter) {
                 .child(DummyView)
                 .child(message_amount.button(1, "1 RAW"))
                 .child(DummyView)
-                .child(message_amount.button(2, format!("Custom {}", data.coin.ticker.trim()))),
+                .child(message_amount.button(
+                    2,
+                    format!("Custom {}", data.coins[data.coin_idx].ticker.trim()),
+                )),
         );
     s.add_layer(
         Dialog::around(content)

@@ -24,11 +24,12 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
             let account = &mut wallet.accounts[wallet.acc_idx];
             let receivable = &mut account.receivables[focus];
             let private_key = &account.private_key;
-            let node_url = &data.coin.node_url;
+            let coin = &data.coins[data.coin_idx];
+            let node_url = &coin.network.node_url;
             let plaintext: String;
 
             let mut content = LinearLayout::vertical();
-            let mut title = format!("{} Receivable", &data.coin.ticker.trim());
+            let mut title = format!("{} Receivable", &coin.ticker.trim());
             let mut receive_label = String::from("");
             if receivable.message.is_some() {
                 receive_label = String::from(" and mark read");
@@ -44,7 +45,7 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                     // Potential feature: Add loading screen + process_message()
                     // time taken to load a (long) message can be noticeable if node
                     // is under load.
-                    plaintext = read_message(private_key, target, root_hash, blocks, node_url);
+                    plaintext = read_message(private_key, target, root_hash, blocks, &node_url);
                     message.plaintext = plaintext.clone();
                 } else {
                     plaintext = message.plaintext.clone();
@@ -57,14 +58,14 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                 );
                 content.add_child(DummyView);
             }
-            let colour = data.coin.colour;
+            let colour = coin.colour;
             if !(receivable.amount == 1 && receivable.message.is_some()) {
                 receive_label = format!("Receive{}", receive_label);
                 let amount = display_to_dp(
                     receivable.amount,
                     SHOW_TO_DP,
-                    &data.coin.multiplier,
-                    &data.coin.ticker,
+                    &coin.multiplier,
+                    &coin.ticker,
                 );
                 content.add_child(TextView::new(StyledString::styled("Amount", colour)));
                 content.add_child(TextView::new(StyledString::styled(amount, OFF_WHITE)));

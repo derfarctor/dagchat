@@ -14,7 +14,7 @@ pub fn show_accounts(s: &mut Cursive) {
     let data = &mut s.user_data::<UserData>().unwrap();
     let wallet = &data.wallets[data.wallet_idx];
     let wallet_name = wallet.name.clone();
-    let prefix = data.coin.prefix.clone();
+    let prefix = data.coins[data.coin_idx].prefix.clone();
 
     let mut buttons = LinearLayout::horizontal().child(DummyView);
     if !wallet.mnemonic.is_empty() {

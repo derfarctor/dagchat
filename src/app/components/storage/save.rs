@@ -1,3 +1,4 @@
+use crate::app::coin::Coins;
 use crate::app::components::storage::structs::StorageData;
 use crate::app::{constants::paths, userdata::UserData};
 use crate::crypto::aes::encrypt_bytes;
@@ -28,8 +29,18 @@ pub fn save_to_storage(s: &mut Cursive) -> Result<(), String> {
     let wallets_bytes = bincode::serialize(&data.wallets).unwrap();
     let lookup_bytes = bincode::serialize(&data.lookup).unwrap();
     let addressbook_bytes = bincode::serialize(&data.addressbook).unwrap();
+    let mut networks = vec![];
+    for coin in &data.coins {
+        networks.push(&coin.network)
+    }
+    let networks_bytes = bincode::serialize(&networks).unwrap();
     let storage_data = StorageData {
-        storage_bytes: vec![wallets_bytes, lookup_bytes, addressbook_bytes],
+        storage_bytes: vec![
+            wallets_bytes,
+            lookup_bytes,
+            addressbook_bytes,
+            networks_bytes,
+        ],
     };
     let encoded: Vec<u8> = bincode::serialize(&storage_data).unwrap();
     let encrypted_bytes = encrypt_bytes(&encoded, &data.password);

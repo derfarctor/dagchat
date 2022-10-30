@@ -33,5 +33,5 @@ pub fn change_rep(
         coin,
         &sub,
     );
-    publish_block(block, sub, &coin.node_url);
+    publish_block(block, sub, &coin.network.node_url);
 }

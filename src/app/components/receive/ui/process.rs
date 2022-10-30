@@ -19,7 +19,7 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
 
     let amount = receivable.amount;
     let address = account.address.clone();
-    let coin = data.coin.clone();
+    let coin = data.coins[data.coin_idx].clone();
     let ticks = 1000;
     let cb = s.cb_sink().clone();
     s.add_layer(Dialog::around(
@@ -61,8 +61,8 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
                             amount: display_to_dp(
                                 amount,
                                 SHOW_TO_DP,
-                                &data.coin.multiplier,
-                                &data.coin.ticker,
+                                &coin.multiplier,
+                                &coin.ticker,
                             ),
                             hash: send_block_hash,
                             plaintext: receivable.message.as_ref().unwrap().plaintext.clone(),
@@ -77,11 +77,14 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
                     let bal = display_to_dp(
                         account.balance,
                         SHOW_TO_DP,
-                        &data.coin.multiplier,
-                        &data.coin.ticker,
+                        &data.coins[data.coin_idx].multiplier,
+                        &data.coins[data.coin_idx].ticker,
                     );
                     let bal_text = format!("Balance: {}", bal);
-                    balance.set_content(StyledString::styled(bal_text, data.coin.colour));
+                    balance.set_content(StyledString::styled(
+                        bal_text,
+                        data.coins[data.coin_idx].colour,
+                    ));
                     s.pop_layer();
                     s.pop_layer();
                     if save_res.is_err() {

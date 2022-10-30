@@ -1,5 +1,6 @@
 use super::super::{sendblock::send, sendmessage::send_message};
 use super::sent::show_sent;
+use crate::app::coin::Coin;
 use crate::app::{
     components::messages::{save::save_messages, structs::SavedMessage},
     constants::{colours::RED, SHOW_TO_DP},
@@ -19,7 +20,7 @@ pub fn process_send(s: &mut Cursive, raw: u128, address: String, message: String
     let data = &mut s.user_data::<UserData>().unwrap();
     let wallet = &data.wallets[data.wallet_idx];
     let private_key_bytes = wallet.accounts[wallet.acc_idx].private_key;
-    let coin = data.coin.clone();
+    let coin = data.coins[data.coin_idx].clone();
     s.pop_layer();
     s.add_layer(Dialog::around(
         ProgressBar::new()
@@ -55,12 +56,7 @@ pub fn process_send(s: &mut Cursive, raw: u128, address: String, message: String
                                 Ok(n) => n.as_secs(),
                                 Err(_) => 0u64,
                             },
-                            amount: display_to_dp(
-                                raw,
-                                SHOW_TO_DP,
-                                &data.coin.multiplier,
-                                &data.coin.ticker,
-                            ),
+                            amount: display_to_dp(raw, SHOW_TO_DP, &coin.multiplier, &coin.ticker),
                             hash,
                             plaintext: message.clone(),
                         });

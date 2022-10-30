@@ -1,5 +1,5 @@
 use super::super::checksetup::check_setup;
-use crate::app::{coin::Coin, constants::VERSION, themes::set_theme, userdata::UserData};
+use crate::app::{coin::*, constants::VERSION, themes::set_theme, userdata::UserData};
 use cursive::align::HAlign;
 use cursive::views::{Button, Dialog, DummyView, LinearLayout, RadioGroup};
 use cursive::Cursive;
@@ -32,7 +32,7 @@ pub fn show_title(s: &mut Cursive) {
         set_theme(s, &*coin, *vibrant);
         if *coin == "banano" {
             s.with_user_data(|data: &mut UserData| {
-                data.coin = Coin::banano();
+                data.coin_idx = Coins::BANANO;
             });
         }
         check_setup(s);

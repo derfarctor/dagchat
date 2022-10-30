@@ -31,7 +31,7 @@ pub fn add_index(s: &mut Cursive) {
 
 fn process_idx(s: &mut Cursive, idx: &str) {
     let data = &mut s.user_data::<UserData>().unwrap();
-    let prefix = &data.coin.prefix.clone();
+    let prefix = &data.coins[data.coin_idx].prefix.clone();
     let wallet = &data.wallets[data.wallet_idx];
     let index_res: Result<u32, _> = idx.parse();
 

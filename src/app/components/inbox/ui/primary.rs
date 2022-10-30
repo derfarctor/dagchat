@@ -22,7 +22,7 @@ pub fn show_inbox(s: &mut Cursive) {
     let data: UserData = s.take_user_data().unwrap();
     let wallet = &data.wallets[data.wallet_idx];
     let address = wallet.accounts[wallet.acc_idx].address.clone();
-    let send_label = format!("Send {}", data.coin.name);
+    let send_label = format!("Send {}", data.coins[data.coin_idx].name);
     let buttons = LinearLayout::vertical()
         .child(Button::new("Refresh", load_receivables))
         .child(Button::new("Messages", |s| {
@@ -49,12 +49,15 @@ pub fn show_inbox(s: &mut Cursive) {
     let bal = display_to_dp(
         wallet.accounts[wallet.acc_idx].balance,
         SHOW_TO_DP,
-        &data.coin.multiplier,
-        &data.coin.ticker,
+        &data.coins[data.coin_idx].multiplier,
+        &data.coins[data.coin_idx].ticker,
     );
     let bal_text = format!("Balance: {}", bal);
-    let bal_content =
-        TextView::new(StyledString::styled(bal_text, data.coin.colour)).with_name("balance");
+    let bal_content = TextView::new(StyledString::styled(
+        bal_text,
+        data.coins[data.coin_idx].colour,
+    ))
+    .with_name("balance");
     s.add_layer(
         Dialog::around(
             LinearLayout::horizontal()
@@ -84,8 +87,8 @@ pub fn show_inbox(s: &mut Cursive) {
             tag = display_to_dp(
                 receivable.amount,
                 SHOW_TO_DP,
-                &data.coin.multiplier,
-                &data.coin.ticker,
+                &data.coins[data.coin_idx].multiplier,
+                &data.coins[data.coin_idx].ticker,
             );
             if receivable.message.is_some() {
                 tag = format!("{} + Msg", tag);

@@ -1,4 +1,4 @@
-use super::coin::Coin;
+use super::coin::*;
 use super::components::wallets::structs::Wallet;
 use arboard::Clipboard;
 use std::collections::HashMap;
@@ -10,7 +10,8 @@ pub struct UserData {
     pub wallet_idx: usize,
     pub lookup: HashMap<String, String>,
     pub addressbook: HashMap<String, String>,
-    pub coin: Coin,
+    pub coins: Vec<Coin>,
+    pub coin_idx: usize,
     pub encrypted_bytes: Vec<u8>,
 }
 
@@ -23,7 +24,8 @@ impl UserData {
             wallet_idx: 0,
             lookup: HashMap::new(),
             addressbook: HashMap::new(),
-            coin: Coin::nano(),
+            coins: vec![Coin::nano(), Coin::banano()],
+            coin_idx: Coins::NANO,
             encrypted_bytes: vec![],
         }
     }

@@ -61,9 +61,9 @@ pub fn get_signed_block(
             previous_hash = public.as_bytes();
         }
         let threshold = if sub == "receive" {
-            u64::from_str_radix(&coin.receive_thresh, 16).unwrap()
+            u64::from_str_radix(&coin.network.receive_thresh, 16).unwrap()
         } else {
-            u64::from_str_radix(&coin.send_thresh, 16).unwrap()
+            u64::from_str_radix(&coin.network.send_thresh, 16).unwrap()
         };
 
         generate_work(previous_hash, threshold)

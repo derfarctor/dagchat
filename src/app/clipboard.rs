@@ -18,7 +18,7 @@ pub fn copy_to_clip(s: &mut Cursive, string: String) {
         let mut content = StyledString::styled(format!("{}\n", string), OFF_WHITE);
         content.append(StyledString::styled(
             "was successfully copied to your clipboard.",
-            data.coin.colour,
+            data.coins[data.coin_idx].colour,
         ));
         s.add_layer(
             Dialog::around(TextView::new(content))

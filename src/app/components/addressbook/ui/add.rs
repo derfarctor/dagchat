@@ -9,7 +9,7 @@ use cursive::{utils::markup::StyledString, Cursive};
 
 pub fn add_addressbook(s: &mut Cursive) {
     let data = &s.user_data::<UserData>().unwrap();
-    let sub_title_colour = get_subtitle_colour(data.coin.colour);
+    let sub_title_colour = get_subtitle_colour(data.coins[data.coin_idx].colour);
     let form_content = LinearLayout::vertical()
         .child(TextView::new(StyledString::styled(
             "Name",

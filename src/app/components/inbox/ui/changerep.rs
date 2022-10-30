@@ -16,7 +16,7 @@ pub fn show_change_rep(s: &mut Cursive) {
     let wallet = &data.wallets[data.wallet_idx];
     let account = &wallet.accounts[wallet.acc_idx];
     let private_key = account.private_key;
-    let coin = data.coin.clone();
+    let coin = data.coins[data.coin_idx].clone();
     let address = account.address.clone();
     let sub_title_colour = get_subtitle_colour(coin.colour);
     s.add_layer(
@@ -57,7 +57,7 @@ pub fn show_change_rep(s: &mut Cursive) {
                         s.add_layer(Dialog::info("The representative's address is invalid."));
                         return;
                     }
-                    let account_info_opt = get_account_info(&address, &coin.node_url);
+                    let account_info_opt = get_account_info(&address, &coin.network.node_url);
                     if account_info_opt.is_ok() {
                         s.add_layer(Dialog::info(format!("You can't change representatives until you open your account by receiving some {}.", coin.name)));
                         return;

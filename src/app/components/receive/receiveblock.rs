@@ -15,7 +15,7 @@ pub fn receive_block(
     coin: &Coin,
     counter: &Counter,
 ) {
-    let account_info_opt = get_account_info(address, &coin.node_url);
+    let account_info_opt = get_account_info(address, &coin.network.node_url);
     counter.tick(300);
     let mut last_block_hash = [0u8; 32];
     let mut new_balance = amount;
@@ -29,7 +29,7 @@ pub fn receive_block(
         representative = to_public_key(&account_info.representative);
     } else {
         // OPEN BLOCK
-        representative = to_public_key(&coin.default_rep);
+        representative = to_public_key(&coin.network.default_rep);
     }
 
     counter.tick(200);
@@ -52,6 +52,6 @@ pub fn receive_block(
         &sub,
     );
     counter.tick(200);
-    publish_block(signed_block, sub, &coin.node_url);
+    publish_block(signed_block, sub, &coin.network.node_url);
     counter.tick(200);
 }

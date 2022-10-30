@@ -11,7 +11,7 @@ pub fn load_receivables(s: &mut Cursive) {
     let cb = s.cb_sink().clone();
 
     let data = &s.user_data::<UserData>().unwrap();
-    let node_url = data.coin.node_url.clone();
+    let node_url = data.coins[data.coin_idx].network.node_url.clone();
     let wallet = &data.wallets[data.wallet_idx];
     let target_address = wallet.accounts[wallet.acc_idx].address.clone();
     s.pop_layer();

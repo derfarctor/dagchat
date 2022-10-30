@@ -21,9 +21,9 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
     let wallet = &data.wallets[data.wallet_idx];
     let account = &wallet.accounts[wallet.acc_idx];
     let balance = account.balance;
-    let coin = data.coin.name.clone();
-    let ticker = data.coin.ticker.clone();
-    let multiplier = data.coin.multiplier.clone();
+    let coin = data.coins[data.coin_idx].name.clone();
+    let ticker = data.coins[data.coin_idx].ticker.clone();
+    let multiplier = data.coins[data.coin_idx].multiplier.clone();
 
     if balance == 0 {
         let address = account.address.clone();
@@ -42,7 +42,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         return;
     }
 
-    let sub_title_colour = get_subtitle_colour(data.coin.colour);
+    let sub_title_colour = get_subtitle_colour(data.coins[data.coin_idx].colour);
 
     let mut form_content = LinearLayout::vertical()
         .child(TextView::new(StyledString::styled(
