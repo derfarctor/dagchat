@@ -45,7 +45,7 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                     // Potential feature: Add loading screen + process_message()
                     // time taken to load a (long) message can be noticeable if node
                     // is under load.
-                    plaintext = read_message(private_key, target, root_hash, blocks, &node_url);
+                    plaintext = read_message(private_key, target, root_hash, blocks, node_url);
                     message.plaintext = plaintext.clone();
                 } else {
                     plaintext = message.plaintext.clone();

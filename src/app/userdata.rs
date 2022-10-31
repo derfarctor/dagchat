@@ -17,13 +17,18 @@ pub struct UserData {
 
 impl UserData {
     pub fn new() -> Self {
+        let mut addressbook = HashMap::new();
+        addressbook.insert(
+            String::from("derfarctor (Author)"),
+            String::from("donate_3kpznqbuzs3grswcqkzitd5fwky4s5cmyt76wru7kbenfwza7q9c1f1egzhm"),
+        );
         UserData {
             password: String::from(""),
             clipboard: Clipboard::new().unwrap(),
             wallets: vec![],
             wallet_idx: 0,
             lookup: HashMap::new(),
-            addressbook: HashMap::new(),
+            addressbook,
             coins: vec![Coin::nano(), Coin::banano()],
             coin_idx: Coins::NANO,
             encrypted_bytes: vec![],

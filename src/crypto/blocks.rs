@@ -1,6 +1,5 @@
 use super::{address::get_address, pow::*};
 use crate::app::coin::Coin;
-use crate::app::constants::LOCAL_WORK;
 use crate::rpc::blockinfo::Block;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
@@ -53,7 +52,7 @@ pub fn get_signed_block(
         expanded_secret.sign(block_hash, &ed25519_dalek::PublicKey::from(&secret));
     let signed_bytes = internal_signed.to_bytes();
 
-    let work = if LOCAL_WORK {
+    let work = if coin.network.local_work {
         // If it is the open block then use the public key to generate work.
         // If not, use previous block hash.
         let mut previous_hash = previous;

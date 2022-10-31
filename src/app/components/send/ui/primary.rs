@@ -49,7 +49,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
             "Recipient Address",
             sub_title_colour,
         )))
-        .child(TextArea::new().with_name("address").max_width(66))
+        .child(TextArea::new().with_name("address").max_width(68))
         .child(
             LinearLayout::horizontal()
                 .child(Button::new("Paste", |s| {

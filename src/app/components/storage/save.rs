@@ -1,4 +1,3 @@
-use crate::app::coin::Coins;
 use crate::app::components::storage::structs::StorageData;
 use crate::app::{constants::paths, userdata::UserData};
 use crate::crypto::aes::encrypt_bytes;

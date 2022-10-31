@@ -1,6 +1,5 @@
 use super::super::{sendblock::send, sendmessage::send_message};
 use super::sent::show_sent;
-use crate::app::coin::Coin;
 use crate::app::{
     components::messages::{save::save_messages, structs::SavedMessage},
     constants::{colours::RED, SHOW_TO_DP},

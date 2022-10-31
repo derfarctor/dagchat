@@ -49,7 +49,7 @@ pub fn show_get_password(s: &mut Cursive, data_path: PathBuf) {
                         load_with_password(s, &password);
                     })),
             )
-            .title("Enter dagchat password")
+            .title("Enter password")
             .max_width(80),
         );
     } else {

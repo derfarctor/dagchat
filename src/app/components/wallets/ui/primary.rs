@@ -4,7 +4,9 @@ use super::{
     remove::remove_wallet,
     select::select_wallet,
 };
-use crate::app::components::title::ui::primary::show_title;
+use crate::app::components::{
+    settings::ui::primary::show_settings, title::ui::primary::show_title,
+};
 use crate::app::userdata::UserData;
 use cursive::event::{Event, EventResult, EventTrigger, MouseEvent};
 use cursive::traits::{Nameable, Resizable, Scrollable};
@@ -17,6 +19,8 @@ pub fn show_wallets(s: &mut Cursive) {
     let buttons = LinearLayout::vertical()
         .child(Button::new("Import", add_wallet))
         .child(Button::new("Create", new_wallet_name))
+        .child(DummyView)
+        .child(Button::new("Settings", show_settings))
         .child(DummyView)
         .child(Button::new("Backup", backup_wallet))
         .child(Button::new("Delete", remove_wallet))

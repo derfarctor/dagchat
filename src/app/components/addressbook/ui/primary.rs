@@ -31,7 +31,10 @@ pub fn show_addressbook(s: &mut Cursive) {
     let mut form_content = LinearLayout::horizontal();
 
     let mut select = SelectView::<String>::new().on_submit(select_addressbook);
-    for (name, _address) in &data.addressbook {
+
+    let mut names: Vec<String> = data.addressbook.keys().cloned().collect();
+    names.sort();
+    for name in names {
         select.add_item_str(name);
     }
     let select = OnEventView::new(select).on_pre_event_inner(EventTrigger::mouse(), |s, e| {
