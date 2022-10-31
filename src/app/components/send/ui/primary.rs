@@ -117,8 +117,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                     s.add_layer(Dialog::info(content));
                     return;
                 }
-                let valid = validate_address(&address);
-                if !valid {
+                if !validate_address(&address) {
                     s.add_layer(Dialog::info("The recipient's address is invalid."));
                     return;
                 }

@@ -1,6 +1,8 @@
 use super::primary::show_addressbook;
 use crate::app::{
-    components::storage::save::save_to_storage, constants::colours::RED, userdata::UserData,
+    components::storage::save::save_to_storage,
+    constants::{colours::RED, AUTHOR},
+    userdata::UserData,
 };
 use cursive::utils::markup::StyledString;
 use cursive::views::{Dialog, OnEventView, SelectView};
@@ -18,6 +20,11 @@ pub fn remove_addressbook(s: &mut Cursive) {
     }
     let focus = focus_opt.unwrap();
     let (name, _) = select.get_item(focus).unwrap();
+
+    if name == AUTHOR {
+        return;
+    }
+
     let data = &mut s.user_data::<UserData>().unwrap();
     let address = data.addressbook.remove(name).unwrap();
     let saved = save_to_storage(s);

@@ -3,6 +3,7 @@ use crate::app::{
     clipboard::paste_clip, components::storage::save::save_to_storage, constants::colours::RED,
     helpers::go_back, themes::get_subtitle_colour, userdata::UserData,
 };
+use crate::crypto::address::validate_address;
 use cursive::traits::{Nameable, Resizable};
 use cursive::views::{Button, Dialog, DummyView, LinearLayout, TextArea, TextView, ViewRef};
 use cursive::{utils::markup::StyledString, Cursive};
@@ -45,6 +46,11 @@ pub fn add_addressbook(s: &mut Cursive) {
                         address = String::from(view.get_content());
                     })
                     .unwrap();
+
+                    if !validate_address(&address) {
+                        s.add_layer(Dialog::info("The contact's address is invalid."));
+                        return;
+                    }
                     let data = &mut s.user_data::<UserData>().unwrap();
                     data.addressbook.insert(name, address);
                     let saved = save_to_storage(s);

@@ -1,5 +1,5 @@
 use super::{add::add_addressbook, remove::remove_addressbook, select::select_addressbook};
-use crate::app::userdata::UserData;
+use crate::app::{constants::AUTHOR, userdata::UserData};
 use cursive::event::{Event, EventResult, EventTrigger, MouseEvent};
 use cursive::traits::{Nameable, Resizable, Scrollable};
 use cursive::views::{
@@ -37,6 +37,7 @@ pub fn show_addressbook(s: &mut Cursive) {
     for name in names {
         select.add_item_str(name);
     }
+    select.add_item_str(AUTHOR);
     let select = OnEventView::new(select).on_pre_event_inner(EventTrigger::mouse(), |s, e| {
         if let &Event::Mouse {
             event: MouseEvent::WheelUp,
