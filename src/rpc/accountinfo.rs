@@ -25,7 +25,7 @@ pub fn get_account_info(address: &str, node_url: &str) -> Result<AccountInfoResp
     });
 
     let body = body_json.to_string();
-    let resp_string = post_node(body, node_url);
+    let resp_string = post_node(body, node_url)?;
     let accountinfo = serde_json::from_str(&resp_string);
     match accountinfo {
         Ok(accountinfo) => Ok(accountinfo),

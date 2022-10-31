@@ -12,7 +12,7 @@ pub fn send_message(
     mut message: String,
     coin: &Coin,
     counter: &Counter,
-) -> String {
+) -> Result<String, String> {
     let public_key_bytes = to_public_key(&target_address);
     let pad = (message.len() + 28) % 32;
     for _ in 0..(32 - pad) {
@@ -36,7 +36,7 @@ pub fn send_message(
 
     // Set up the previous block hash and balance to start publishing blocks
     // Also note the representative from before sending, in order to change back afterwards
-    let account_info = get_account_info(&sender_address, &coin.network.node_url).unwrap();
+    let account_info = get_account_info(&sender_address, &coin.network.node_url)?;
     let mut last_block_hash = get_32_bytes(&account_info.frontier);
     let mut balance = get_balance(&account_info);
     let representative = to_public_key(&account_info.representative);
@@ -81,7 +81,7 @@ pub fn send_message(
             first_block_hash = block_hash;
         }
         last_block_hash = block_hash;
-        publish_block(block, sub.clone(), &coin.network);
+        publish_block(block, sub.clone(), &coin.network)?;
     }
     // Change representative to what it was at the start
     link = [0u8; 32];
@@ -103,6 +103,6 @@ pub fn send_message(
         coin,
         &sub,
     );
-    publish_block(block, sub, &coin.network);
-    hex::encode(last_block_hash)
+    publish_block(block, sub, &coin.network)?;
+    Ok(hex::encode(last_block_hash))
 }

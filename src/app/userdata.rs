@@ -2,7 +2,6 @@ use super::coin::*;
 use super::components::wallets::structs::Wallet;
 use arboard::Clipboard;
 use std::collections::HashMap;
-use std::hash::Hash;
 
 pub struct UserData {
     pub password: String,

@@ -20,7 +20,12 @@ pub struct HistoryResponse {
     next: String,
 }
 
-pub fn get_history(target_address: &str, head: &str, length: u64, node_url: &str) -> Vec<Block> {
+pub fn get_history(
+    target_address: &str,
+    head: &str,
+    length: u64,
+    node_url: &str,
+) -> Result<Vec<Block>, String> {
     let request = HistoryRequest {
         action: String::from("account_history"),
         account: String::from(target_address),
@@ -30,8 +35,8 @@ pub fn get_history(target_address: &str, head: &str, length: u64, node_url: &str
         raw: true,
     };
     let body = serde_json::to_string(&request).unwrap();
-    let response = post_node(body, node_url);
+    let response = post_node(body, node_url)?;
     //println!("{}", response);
     let history_info: HistoryResponse = serde_json::from_str(&response).unwrap();
-    history_info.history
+    Ok(history_info.history)
 }

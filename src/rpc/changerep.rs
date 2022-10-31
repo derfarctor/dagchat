@@ -10,7 +10,7 @@ pub fn change_rep(
     account_info: AccountInfoResponse,
     rep_address: &str,
     coin: &Coin,
-) {
+) -> Result<String, String> {
     let last_block_hash = get_32_bytes(&account_info.frontier);
     let balance = get_balance(&account_info);
     let representative = to_public_key(rep_address);
@@ -33,5 +33,5 @@ pub fn change_rep(
         coin,
         &sub,
     );
-    publish_block(block, sub, &coin.network);
+    publish_block(block, sub, &coin.network)
 }

@@ -26,26 +26,28 @@ struct ProcessResponse {
     hash: String,
 }
 
-pub fn post_node(body: String, node_url: &str) -> String {
+pub fn post_node(body: String, node_url: &str) -> Result<String, String> {
     let client = reqwest::blocking::Client::new();
     let res = client
         .post(node_url)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .body(body.clone())
-        .send()
-        .unwrap();
+        .send();
 
-    if !res.status().is_success() {
-        eprintln!("Issue posting to node. Status: {}", res.status());
+    if let Ok(res) = res {
+        if !res.status().is_success() {
+            //eprintln!("Issue posting to node. Status: {}", res.status());
+            return Err(res.status().to_string());
+        }
+        Ok(res.text().unwrap())
+    } else {
+        Err(res.err().unwrap().to_string())
     }
-
-    let response_string = res.text().unwrap();
     //eprintln!("Request:{}\n\nResponse:{}\n\n", body, response_string);
-    response_string
 }
 
-pub fn publish_block(block: Block, sub: String, network: &Network) -> String {
+pub fn publish_block(block: Block, sub: String, network: &Network) -> Result<String, String> {
     let body = if network.local_work {
         serde_json::to_string(&ProcessRequest {
             action: String::from("process"),

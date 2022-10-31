@@ -1,5 +1,6 @@
 use super::super::{sendblock::send, sendmessage::send_message};
 use super::sent::show_sent;
+use crate::app::components::inbox::ui::primary::show_inbox;
 use crate::app::{
     components::messages::{save::save_messages, structs::SavedMessage},
     constants::{colours::RED, SHOW_TO_DP},
@@ -27,10 +28,15 @@ pub fn process_send(s: &mut Cursive, raw: u128, address: String, message: String
             .with_task(move |counter| {
                 let with_message = !message.is_empty();
                 let mut hash = String::from("");
+                let mut error = String::from("");
                 if !with_message {
-                    send(&private_key_bytes, address.clone(), raw, &coin, &counter);
+                    // Add error handling and message response
+                    if let Err(e) = send(&private_key_bytes, address.clone(), raw, &coin, &counter)
+                    {
+                        error = e;
+                    }
                 } else {
-                    hash = send_message(
+                    let send_res = send_message(
                         &private_key_bytes,
                         address.clone(),
                         raw,
@@ -38,8 +44,23 @@ pub fn process_send(s: &mut Cursive, raw: u128, address: String, message: String
                         &coin,
                         &counter,
                     );
+                    if let Ok(response_hash) = send_res {
+                        hash = response_hash;
+                    } else {
+                        error = send_res.err().unwrap();
+                    }
                 }
                 cb.send(Box::new(move |s| {
+                    if !error.is_empty() {
+                        s.set_autorefresh(false);
+                        s.pop_layer();
+                        show_inbox(s);
+                        s.add_layer(Dialog::info(StyledString::styled(
+                            format!("Send failed. Error: {}", error),
+                            RED,
+                        )));
+                        return;
+                    }
                     let mut save_res = Ok(());
                     let data = &mut s.user_data::<UserData>().unwrap();
                     let wallet = &mut data.wallets[data.wallet_idx];

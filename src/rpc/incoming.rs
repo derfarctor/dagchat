@@ -8,7 +8,11 @@ use cursive::utils::Counter;
 
 use serde_json;
 
-pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) -> Vec<Receivable> {
+pub fn find_incoming(
+    target_address: &str,
+    node_url: &str,
+    counter: &Counter,
+) -> Result<Vec<Receivable>, String> {
     let request = ReceivableRequest {
         action: String::from("pending"),
         account: String::from(target_address),
@@ -17,7 +21,7 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
     };
 
     let body = serde_json::to_string(&request).unwrap();
-    let response = post_node(body, node_url);
+    let response = post_node(body, node_url)?;
     counter.tick(200);
 
     //eprintln!("{}", &response);
@@ -26,7 +30,7 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
         Ok(receivables) => receivables,
         // If deserialisation failed, either there were no blocks
         // Or an different error was encountered.
-        Err(_) => return vec![],
+        Err(_) => return Ok(vec![]),
     };
 
     let receivable_blocks = receivables.blocks.data;
@@ -35,7 +39,7 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
         head_hashes.push(block.0.clone());
     }
     counter.tick(50);
-    let head_blocks_info = get_blocks_info(head_hashes, node_url);
+    let head_blocks_info = get_blocks_info(head_hashes, node_url)?;
     counter.tick(200);
     let mut raw_head_blocks = head_blocks_info.blocks.data;
     let mut root_hashes: Vec<String> = vec![];
@@ -47,7 +51,7 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
         root_hashes.push(hash);
     }
     counter.tick(50);
-    let root_blocks_info = get_blocks_info(root_hashes, node_url);
+    let root_blocks_info = get_blocks_info(root_hashes, node_url)?;
     counter.tick(100);
     let raw_root_blocks = root_blocks_info.blocks.data;
 
@@ -77,5 +81,5 @@ pub fn find_incoming(target_address: &str, node_url: &str, counter: &Counter) ->
         });
         counter.tick(x);
     }
-    incoming
+    Ok(incoming)
 }

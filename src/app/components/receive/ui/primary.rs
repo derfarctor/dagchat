@@ -1,5 +1,6 @@
 use super::process::process_receive;
 use crate::app::components::messages::readmessage::read_message;
+use crate::app::constants::colours::RED;
 use crate::app::{
     clipboard::copy_to_clip,
     constants::{colours::OFF_WHITE, SHOW_TO_DP},
@@ -45,8 +46,17 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                     // Potential feature: Add loading screen + process_message()
                     // time taken to load a (long) message can be noticeable if node
                     // is under load.
-                    plaintext = read_message(private_key, target, root_hash, blocks, node_url);
-                    message.plaintext = plaintext.clone();
+                    let read_res = read_message(private_key, target, root_hash, blocks, node_url);
+                    if let Ok(plaintext_res) = read_res {
+                        plaintext = plaintext_res;
+                        message.plaintext = plaintext.clone();
+                    } else {
+                        s.add_layer(Dialog::info(StyledString::styled(
+                            format!("Failed to read message. Error: {}", read_res.err().unwrap()),
+                            RED,
+                        )));
+                        return;
+                    }
                 } else {
                     plaintext = message.plaintext.clone();
                 }

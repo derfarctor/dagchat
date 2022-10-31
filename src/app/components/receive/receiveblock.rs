@@ -14,7 +14,7 @@ pub fn receive_block(
     address: &str,
     coin: &Coin,
     counter: &Counter,
-) {
+) -> Result<String, String> {
     let account_info_opt = get_account_info(address, &coin.network.node_url);
     counter.tick(300);
     let mut last_block_hash = [0u8; 32];
@@ -52,5 +52,5 @@ pub fn receive_block(
         &sub,
     );
     counter.tick(400);
-    publish_block(signed_block, sub, &coin.network);
+    publish_block(signed_block, sub, &coin.network)
 }

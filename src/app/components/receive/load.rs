@@ -1,10 +1,11 @@
 use crate::app::components::inbox::ui::primary::show_inbox;
+use crate::app::constants::colours::RED;
 use crate::app::userdata::UserData;
 use crate::rpc::{accountinfo::*, incoming::find_incoming};
 use cursive::traits::Resizable;
+use cursive::utils::markup::StyledString;
 use cursive::views::{Dialog, ProgressBar};
 use cursive::Cursive;
-
 pub fn load_receivables(s: &mut Cursive) {
     let ticks = 1000;
 
@@ -29,9 +30,21 @@ pub fn load_receivables(s: &mut Cursive) {
                     let data = &mut s.user_data::<UserData>().unwrap();
                     let wallet = &mut data.wallets[data.wallet_idx];
                     let account = &mut wallet.accounts[wallet.acc_idx];
-                    account.receivables = receivables;
                     account.balance = balance;
-                    show_inbox(s);
+                    if let Ok(receivables) = receivables {
+                        account.receivables = receivables;
+                        show_inbox(s);
+                    } else {
+                        account.receivables = vec![];
+                        show_inbox(s);
+                        s.add_layer(Dialog::info(StyledString::styled(
+                            format!(
+                                "Error encountered loading receivables: {}",
+                                receivables.err().unwrap(),
+                            ),
+                            RED,
+                        )));
+                    }
                 }))
                 .unwrap();
             })

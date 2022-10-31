@@ -14,7 +14,7 @@ pub fn send(
     raw: u128,
     coin: &Coin,
     counter: &Counter,
-) {
+) -> Result<String, String> {
     // Derive sender's address
     let sender_pub = ed25519_dalek::PublicKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_bytes).unwrap(),
@@ -22,7 +22,7 @@ pub fn send(
     let sender_address = get_address(sender_pub.as_bytes(), Some(&coin.prefix));
 
     // Safe because account must be opened to have got this far
-    let account_info = get_account_info(&sender_address, &coin.network.node_url).unwrap();
+    let account_info = get_account_info(&sender_address, &coin.network.node_url)?;
 
     let last_block_hash = get_32_bytes(&account_info.frontier);
     let new_balance = get_balance(&account_info) - raw;
@@ -48,5 +48,5 @@ pub fn send(
         &sub,
     );
     counter.tick(500);
-    publish_block(signed_block, sub, &coin.network);
+    publish_block(signed_block, sub, &coin.network)
 }

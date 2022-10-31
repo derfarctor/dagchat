@@ -1,13 +1,12 @@
-use cursive::view::{Nameable, Resizable, Scrollable};
-use cursive::views::{
-    Button, Dialog, DummyView, HideableView, LinearLayout, RadioGroup, ScreensView, TextArea,
-    TextView, ViewRef,
-};
-use cursive::{Cursive, With};
-
+use crate::app::clipboard::paste_clip;
 use crate::app::components::storage::save::save_to_storage;
 use crate::app::helpers::go_back;
 use crate::app::userdata::UserData;
+use cursive::view::Nameable;
+use cursive::views::{
+    Button, Dialog, DummyView, EditView, LinearLayout, RadioGroup, ScreensView, TextArea, ViewRef,
+};
+use cursive::Cursive;
 
 pub fn show_settings(s: &mut Cursive) {
     let data = &s.user_data::<UserData>().unwrap();
@@ -47,13 +46,26 @@ pub fn show_settings(s: &mut Cursive) {
                     Dialog::around(
                         LinearLayout::vertical()
                             .child(DummyView)
-                            .child(TextArea::new().content(node_url))
+                            .child(TextArea::new().content(node_url).with_name("nodeurl"))
                             .child(DummyView)
                             .child(
                                 LinearLayout::horizontal()
                                     .child(Button::new("Info", |s| {}))
                                     .child(DummyView)
-                                    .child(Button::new("Change", |s| {})),
+                                    .child(Button::new("Change", |s| {
+                                        let mut node_url = String::from("");
+                                        s.call_on_name("nodeurl", |view: &mut TextArea| {
+                                            node_url = view.get_content().to_string();
+                                        })
+                                        .unwrap();
+                                        set_node_url(s, &node_url);
+                                    }))
+                                    .child(DummyView)
+                                    .child(Button::new("Paste", |s| {
+                                        let mut node_url: ViewRef<TextArea> =
+                                            s.find_name("nodeurl").unwrap();
+                                        node_url.set_content(paste_clip(s));
+                                    })),
                             ),
                     )
                     .title(format!(
@@ -195,8 +207,19 @@ fn set_local_work(s: &mut Cursive, local_work: &bool) {
     data.coins[data.coin_idx].network.local_work = *local_work;
     let saved = save_to_storage(s);
     if let Ok(_saved) = saved {
-        s.add_layer(Dialog::info("Success!"));
+        s.add_layer(Dialog::info("Updated selection successfully."));
     } else {
         s.add_layer(Dialog::info("Error saving local work option."));
+    }
+}
+
+fn set_node_url(s: &mut Cursive, node_url: &str) {
+    let data = &mut s.user_data::<UserData>().unwrap();
+    data.coins[data.coin_idx].network.node_url = String::from(node_url);
+    let saved = save_to_storage(s);
+    if let Ok(_saved) = saved {
+        s.add_layer(Dialog::info("Updated node API successfully."));
+    } else {
+        s.add_layer(Dialog::info("Error saving node API."));
     }
 }

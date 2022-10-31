@@ -1,6 +1,9 @@
 use super::super::receiveblock::receive_block;
 use crate::app::{
-    components::messages::{save::save_messages, structs::SavedMessage},
+    components::{
+        inbox::ui::primary::show_inbox,
+        messages::{save::save_messages, structs::SavedMessage},
+    },
     constants::{colours::RED, SHOW_TO_DP},
     userdata::UserData,
 };
@@ -26,15 +29,28 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
         ProgressBar::new()
             .range(0, ticks)
             .with_task(move |counter| {
-                receive_block(
+                let mut error = String::from("");
+                if let Err(e) = receive_block(
                     &private_key,
                     &send_block_hash,
                     amount,
                     &address,
                     &coin,
                     &counter,
-                );
+                ) {
+                    error = e;
+                }
                 cb.send(Box::new(move |s| {
+                    if !error.is_empty() {
+                        s.set_autorefresh(false);
+                        s.pop_layer();
+                        show_inbox(s);
+                        s.add_layer(Dialog::info(StyledString::styled(
+                            format!("Receive failed. Error: {}", error),
+                            RED,
+                        )));
+                        return;
+                    }
                     let mut select = s.find_name::<SelectView<String>>("select").unwrap();
                     select.remove_item(idx);
                     let mut balance = s.find_name::<TextView>("balance").unwrap();
@@ -45,7 +61,6 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
                     let send_block_hash = receivable.hash.clone();
                     let amount = receivable.amount;
                     let has_message = { receivable.message.is_some() };
-
                     let mut save_res = Ok(());
                     if has_message {
                         account.messages.as_mut().unwrap().push(SavedMessage {

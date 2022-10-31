@@ -1,5 +1,6 @@
 use super::primary::show_inbox;
 use crate::app::components::addressbook::ui::primary::show_addressbook;
+use crate::app::constants::colours::RED;
 use crate::app::{clipboard::paste_clip, themes::get_subtitle_colour, userdata::UserData};
 use crate::crypto::address::validate_address;
 use crate::rpc::{accountinfo::get_account_info, changerep::change_rep};
@@ -63,7 +64,12 @@ pub fn show_change_rep(s: &mut Cursive) {
                         return;
                     }
                     let account_info = account_info_opt.unwrap();
-                    change_rep(&private_key, account_info, &rep_address, &coin);
+                    if let Err(error) = change_rep(&private_key, account_info, &rep_address, &coin) {
+                        s.add_layer(
+                            Dialog::info(StyledString::styled(format!("Failed to change representative. Error: {}", error), RED)),
+                        );
+                        return;
+                    }
                     s.pop_layer();
                     show_inbox(s);
                     s.add_layer(Dialog::info("Successfully changed representative!"));
