@@ -1,6 +1,5 @@
-use super::constants::colours::OFF_WHITE;
+use super::constants::colours::{OFF_WHITE, RED};
 use super::userdata::UserData;
-use cursive::theme::{BaseColor, Color};
 use cursive::traits::Resizable;
 use cursive::utils::markup::StyledString;
 use cursive::views::{Dialog, TextView};
@@ -12,7 +11,7 @@ pub fn copy_to_clip(s: &mut Cursive, string: String) {
     if copied.is_err() {
         s.add_layer(Dialog::info(StyledString::styled(
             "Error copying to clipboard.",
-            Color::Light(BaseColor::Red),
+            RED,
         )));
     } else {
         let mut content = StyledString::styled(format!("{}\n", string), OFF_WHITE);

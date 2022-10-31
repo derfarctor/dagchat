@@ -1,23 +1,27 @@
 use crate::app::clipboard::paste_clip;
-use crate::app::components::storage::save::save_to_storage;
 use crate::app::helpers::go_back;
 use crate::app::userdata::UserData;
 use cursive::view::Nameable;
 use cursive::views::{
-    Button, Dialog, DummyView, EditView, LinearLayout, RadioGroup, ScreensView, TextArea, ViewRef,
+    Button, Dialog, DummyView, LinearLayout, RadioGroup, ScreensView, TextArea, ViewRef,
 };
 use cursive::Cursive;
+
+use super::defaultrep::{get_default_rep_info, set_default_rep};
+use super::localwork::{get_local_work_info, set_local_work};
+use super::nodeurl::{get_nodeurl_info, set_node_url};
 
 pub fn show_settings(s: &mut Cursive) {
     let data = &s.user_data::<UserData>().unwrap();
     let coin = &data.coins[data.coin_idx];
     let network = &coin.network;
+    let default_rep = &network.default_rep;
     let coin_name = coin.name.clone();
     let node_url = network.node_url.clone();
 
     let mut local_work: RadioGroup<bool> = RadioGroup::new();
     let mut local_work_button = local_work.button(true, "Local");
-    let mut boom_pow_button = local_work.button(false, "Boom Pow");
+    let mut boom_pow_button = local_work.button(false, "BoomPow");
     local_work.set_on_change(set_local_work);
     if network.local_work {
         local_work_button.select();
@@ -50,7 +54,7 @@ pub fn show_settings(s: &mut Cursive) {
                             .child(DummyView)
                             .child(
                                 LinearLayout::horizontal()
-                                    .child(Button::new("Info", |s| {}))
+                                    .child(Button::new("Info", get_nodeurl_info))
                                     .child(DummyView)
                                     .child(Button::new("Change", |s| {
                                         let mut node_url = String::from("");
@@ -86,7 +90,10 @@ pub fn show_settings(s: &mut Cursive) {
                                     .child(local_work_button),
                             )
                             .child(DummyView)
-                            .child(LinearLayout::horizontal().child(Button::new("Info", |s| {}))),
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(Button::new("Info", get_local_work_info)),
+                            ),
                     )
                     .title("Proof of Work"),
                 )
@@ -115,16 +122,29 @@ pub fn show_settings(s: &mut Cursive) {
                     Dialog::around(
                         LinearLayout::vertical()
                             .child(DummyView)
-                            .child(TextArea::new().content("Setting 3"))
+                            .child(TextArea::new().content(default_rep).with_name("defaultrep"))
                             .child(DummyView)
                             .child(
                                 LinearLayout::horizontal()
-                                    .child(Button::new("Info", |s| {}))
+                                    .child(Button::new("Info", get_default_rep_info))
                                     .child(DummyView)
-                                    .child(Button::new("Change", |s| {})),
+                                    .child(Button::new("Change", |s| {
+                                        let mut default_rep = String::from("");
+                                        s.call_on_name("defaultrep", |view: &mut TextArea| {
+                                            default_rep = view.get_content().to_string();
+                                        })
+                                        .unwrap();
+                                        set_default_rep(s, &default_rep);
+                                    }))
+                                    .child(DummyView)
+                                    .child(Button::new("Paste", |s| {
+                                        let mut default_rep: ViewRef<TextArea> =
+                                            s.find_name("defaultrep").unwrap();
+                                        default_rep.set_content(paste_clip(s));
+                                    })),
                             ),
                     )
-                    .title("Setting 3"),
+                    .title("Default Representative"),
                 )
                 .child(DummyView)
                 .child(
@@ -200,26 +220,4 @@ pub fn show_settings(s: &mut Cursive) {
     );
 
     s.add_layer(screens.with_name("settings"));
-}
-
-fn set_local_work(s: &mut Cursive, local_work: &bool) {
-    let data = &mut s.user_data::<UserData>().unwrap();
-    data.coins[data.coin_idx].network.local_work = *local_work;
-    let saved = save_to_storage(s);
-    if let Ok(_saved) = saved {
-        s.add_layer(Dialog::info("Updated selection successfully."));
-    } else {
-        s.add_layer(Dialog::info("Error saving local work option."));
-    }
-}
-
-fn set_node_url(s: &mut Cursive, node_url: &str) {
-    let data = &mut s.user_data::<UserData>().unwrap();
-    data.coins[data.coin_idx].network.node_url = String::from(node_url);
-    let saved = save_to_storage(s);
-    if let Ok(_saved) = saved {
-        s.add_layer(Dialog::info("Updated node API successfully."));
-    } else {
-        s.add_layer(Dialog::info("Error saving node API."));
-    }
 }
