@@ -6,7 +6,6 @@ use crate::app::userdata::UserData;
 use crate::crypto::aes::decrypt_bytes;
 use cursive::views::Dialog;
 use cursive::{utils::markup::StyledString, Cursive};
-use std::collections::HashMap;
 
 pub fn load_with_password(s: &mut Cursive, password: &str) {
     let data = &mut s.user_data::<UserData>().unwrap();
@@ -48,12 +47,10 @@ pub fn load_with_password(s: &mut Cursive, password: &str) {
 
         // Load address book
         if storage_data.storage_bytes.len() > StorageElements::ADDRESSBOOK {
-            if let Ok(addressbook) = bincode::deserialize::<HashMap<String, String>>(
-                &storage_data.storage_bytes[StorageElements::ADDRESSBOOK],
-            ) {
-                if !addressbook.is_empty() {
-                    data.addressbook = addressbook;
-                }
+            if let Ok(addressbook) =
+                bincode::deserialize(&storage_data.storage_bytes[StorageElements::ADDRESSBOOK])
+            {
+                data.addressbook = addressbook;
             } else {
                 errors.push_str(" address book,");
             }

@@ -81,7 +81,7 @@ pub fn send_message(
             first_block_hash = block_hash;
         }
         last_block_hash = block_hash;
-        publish_block(block, sub.clone(), &coin.network.node_url);
+        publish_block(block, sub.clone(), &coin.network);
     }
     // Change representative to what it was at the start
     link = [0u8; 32];
@@ -103,6 +103,6 @@ pub fn send_message(
         coin,
         &sub,
     );
-    publish_block(block, sub, &coin.network.node_url);
+    publish_block(block, sub, &coin.network);
     hex::encode(last_block_hash)
 }

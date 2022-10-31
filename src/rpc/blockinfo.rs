@@ -12,6 +12,7 @@ pub struct Block {
     pub representative: String,
     pub balance: String,
     pub link: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub work: String,
     pub signature: String,
 }
