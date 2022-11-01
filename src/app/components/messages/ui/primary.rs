@@ -59,13 +59,26 @@ pub fn show_messages(s: &mut Cursive, mut filter: Filter) {
         message_info.append(StyledString::styled(&message.address, colour));
         if !message.plaintext.is_empty() {
             message_info.append(StyledString::styled("\nMessage: ", OFF_WHITE));
-            message_info.append(StyledString::styled(&message.plaintext, colour));
+            if message.amount != "1 RAW" {
+                message_info.append(StyledString::styled(&message.plaintext, colour));
+                message_info.append(StyledString::styled("\nAmount: ", OFF_WHITE));
+                message_info.append(StyledString::styled(
+                    format!("{}\n\n", message.amount),
+                    colour,
+                ));
+            } else {
+                message_info.append(StyledString::styled(
+                    format!("{}\n\n", &message.plaintext),
+                    colour,
+                ))
+            };
+        } else {
+            message_info.append(StyledString::styled("\nAmount: ", OFF_WHITE));
+            message_info.append(StyledString::styled(
+                format!("{}\n\n", message.amount),
+                colour,
+            ));
         }
-        message_info.append(StyledString::styled("\nAmount: ", OFF_WHITE));
-        message_info.append(StyledString::styled(
-            format!("{}\n\n", message.amount),
-            colour,
-        ));
 
         if !search_term.as_str().is_empty() {
             if message_info.source().contains(&search_term) {

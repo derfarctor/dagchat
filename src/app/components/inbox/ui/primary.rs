@@ -25,13 +25,13 @@ pub fn show_inbox(s: &mut Cursive) {
     let send_label = format!("Send {}", data.coins[data.coin_idx].name);
     let buttons = LinearLayout::vertical()
         .child(Button::new("Refresh", load_receivables))
-        .child(Button::new("Messages", |s| {
-            let filter: Filter = Default::default();
-            show_messages(s, filter);
-        }))
         .child(DummyView)
         .child(Button::new(send_label, |s| show_send(s, false)))
         .child(Button::new("Send message", |s| show_send(s, true)))
+        .child(Button::new("Msg History", |s| {
+            let filter: Filter = Default::default();
+            show_messages(s, filter);
+        }))
         .child(DummyView)
         .child(Button::new("Copy address", move |s| {
             copy_to_clip(s, address.clone())
@@ -69,7 +69,7 @@ pub fn show_inbox(s: &mut Cursive) {
                         .child(
                             Dialog::around(select)
                                 .padding_lrtb(1, 1, 1, 1)
-                                .title("Receivables"),
+                                .title("Incoming"),
                         ),
                 )
                 .child(DummyView)
