@@ -32,7 +32,7 @@ pub fn show_addressbook(s: &mut Cursive) {
 
     let mut select = SelectView::<String>::new().on_submit(select_addressbook);
 
-    let mut names: Vec<String> = data.addressbook.keys().cloned().collect();
+    let mut names: Vec<String> = data.addressbook.values().cloned().collect();
     names.sort();
     for name in names {
         select.add_item_str(name);

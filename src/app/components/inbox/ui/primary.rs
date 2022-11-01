@@ -27,8 +27,9 @@ pub fn show_inbox(s: &mut Cursive) {
         .child(Button::new("Refresh", load_receivables))
         .child(DummyView)
         .child(Button::new(send_label, |s| show_send(s, false)))
+        .child(DummyView)
         .child(Button::new("Send message", |s| show_send(s, true)))
-        .child(Button::new("Msg History", |s| {
+        .child(Button::new("Messages log", |s| {
             let filter: Filter = Default::default();
             show_messages(s, filter);
         }))
@@ -94,7 +95,11 @@ pub fn show_inbox(s: &mut Cursive) {
                 tag = format!("{} + Msg", tag);
             }
         }
-        let addr = receivable.source.get(0..11).unwrap();
+        let addr = if data.addressbook.contains_key(&receivable.source) {
+            data.addressbook.get(&receivable.source).unwrap()
+        } else {
+            receivable.source.get(0..11).unwrap()
+        };
         tag = format!("{} > {}", addr, tag);
         s.call_on_name("select", |view: &mut SelectView<String>| {
             view.add_item_str(&tag)

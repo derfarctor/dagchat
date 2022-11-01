@@ -19,12 +19,10 @@ pub fn show_wallets(s: &mut Cursive) {
     let buttons = LinearLayout::vertical()
         .child(Button::new("Import", add_wallet))
         .child(Button::new("Create", new_wallet_name))
-        .child(DummyView)
-        .child(Button::new("Settings", show_settings))
-        .child(DummyView)
         .child(Button::new("Backup", backup_wallet))
         .child(Button::new("Delete", remove_wallet))
         .child(DummyView)
+        .child(Button::new("Settings", show_settings))
         .child(Button::new("Back", |s| {
             s.pop_layer();
             show_title(s);

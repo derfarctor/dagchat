@@ -11,7 +11,14 @@ pub fn select_addressbook(s: &mut Cursive, name: &str) {
         let network_prefix = (&data.coins[data.coin_idx].prefix).clone();
         network_prefix + "3kpznqbuzs3grswcqkzitd5fwky4s5cmyt76wru7kbenfwza7q9c1f1egzhm"
     } else {
-        let address = data.addressbook.get(name).unwrap().clone();
+        let mut address = String::from("_ErrorAddressNotFound");
+
+        // Inefficient, could use a reverse HashMap to go from value to key
+        for (contact_address, contact_name) in &data.addressbook {
+            if name == contact_name {
+                address = contact_address.to_owned();
+            }
+        }
         let idx_of_ = address.find('_').unwrap();
         let prefix = &address[..idx_of_ + 1];
         let network_prefix = (&data.coins[data.coin_idx].prefix).clone();

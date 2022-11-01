@@ -56,7 +56,14 @@ pub fn show_messages(s: &mut Cursive, mut filter: Filter) {
         let mut message_info = StyledString::styled(format!("{} at: ", a), OFF_WHITE);
         message_info.append(StyledString::styled(timestamp_str, colour));
         message_info.append(StyledString::styled(format!("\n{} ", b), OFF_WHITE));
-        message_info.append(StyledString::styled(&message.address, colour));
+
+        let source = if data.addressbook.contains_key(&message.address) {
+            data.addressbook.get(&message.address).unwrap()
+        } else {
+            &message.address
+        };
+
+        message_info.append(StyledString::styled(source, colour));
         if !message.plaintext.is_empty() {
             message_info.append(StyledString::styled("\nMessage: ", OFF_WHITE));
             if message.amount != "1 RAW" {

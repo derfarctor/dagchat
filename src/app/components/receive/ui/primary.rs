@@ -83,7 +83,13 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
             } else {
                 receive_label = String::from("Mark read");
             }
-            let sender = receivable.source.clone();
+
+            let sender = if data.addressbook.contains_key(&receivable.source) {
+                data.addressbook.get(&receivable.source).unwrap().clone()
+            } else {
+                receivable.source.clone()
+            };
+
             content.add_child(TextView::new(StyledString::styled("From", colour)));
             content
                 .add_child(TextView::new(StyledString::styled(&sender, OFF_WHITE)).fixed_width(65));

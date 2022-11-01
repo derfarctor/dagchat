@@ -26,6 +26,6 @@ pub fn get_save_message_info(s: &mut Cursive) {
     let data = &mut s.user_data::<UserData>().unwrap();
     let colour = data.coins[data.coin_idx].colour;
     s.add_layer(Dialog::info(
-            StyledString::styled("\nYou can choose whether you want dagchat to Save & Encrypt the messages you have sent and received, for reference in the future. Saved messages can be read, filtered and searched via the messages button which is accessible from the inbox once you have loaded an account.", colour),
+            StyledString::styled("\nYou can choose whether you want dagchat to Save & Encrypt the messages you have sent and received, for reference in the future. Saved messages can be read, filtered and searched via the <Messages log> button which is accessible from the inbox once you have loaded an account.", colour),
         ).title("Messages"));
 }
