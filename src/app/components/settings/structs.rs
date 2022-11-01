@@ -8,6 +8,7 @@ pub struct Network {
     pub send_thresh: String,
     pub receive_thresh: String,
     pub local_work: bool,
+    pub save_messages: bool,
 }
 
 impl Network {
@@ -21,6 +22,7 @@ impl Network {
             send_thresh: String::from("FFFFFFF800000000"),
             receive_thresh: String::from("FFFFFE0000000000"),
             local_work: false,
+            save_messages: true,
         }
     }
     pub fn banano() -> Network {
@@ -33,6 +35,7 @@ impl Network {
             send_thresh: String::from("FFFFFE0000000000"),
             receive_thresh: String::from("FFFFFE0000000000"),
             local_work: false,
+            save_messages: true,
         }
     }
 }

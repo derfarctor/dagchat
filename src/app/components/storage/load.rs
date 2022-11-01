@@ -67,10 +67,10 @@ pub fn load_with_password(s: &mut Cursive, password: &str) {
                     data.coins[coin].network = networks.remove(0);
                 }
             } else {
-                errors.push_str(" networks,");
+                errors.push_str(" settings,");
             }
         } else {
-            errors.push_str(" networks,");
+            errors.push_str(" settings,");
         }
 
         show_wallets(s);

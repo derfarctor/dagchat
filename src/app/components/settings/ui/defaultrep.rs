@@ -1,26 +1,37 @@
 use crate::{
-    app::{components::storage::save::save_to_storage, userdata::UserData},
+    app::{
+        components::storage::save::save_to_storage, constants::colours::RED,
+        themes::get_subtitle_colour, userdata::UserData,
+    },
     crypto::address::validate_address,
 };
 use cursive::{utils::markup::StyledString, views::Dialog, Cursive};
 
 pub fn set_default_rep(s: &mut Cursive, default_rep: &str) {
     let data = &mut s.user_data::<UserData>().unwrap();
+    let colour = get_subtitle_colour(data.coins[data.coin_idx].colour);
     if validate_address(default_rep) {
         data.coins[data.coin_idx].network.default_rep = String::from(default_rep);
         let saved = save_to_storage(s);
         if let Ok(_saved) = saved {
-            s.add_layer(Dialog::info("Updated default representative successfully."));
+            s.add_layer(Dialog::info(StyledString::styled(
+                "Updated default representative successfully.",
+                colour,
+            )));
         } else {
-            s.add_layer(Dialog::info(format!(
-                "Failed to save default representative. {}",
-                saved.err().unwrap()
+            s.add_layer(Dialog::info(StyledString::styled(
+                format!(
+                    "Failed to save default representative. {}",
+                    saved.err().unwrap()
+                ),
+                RED,
             )));
         }
     } else {
-        s.add_layer(Dialog::info(
+        s.add_layer(Dialog::info(StyledString::styled(
             "The default representative address was invalid.",
-        ));
+            RED,
+        )));
     }
 }
 

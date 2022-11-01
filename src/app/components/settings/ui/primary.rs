@@ -1,3 +1,7 @@
+use super::defaultrep::{get_default_rep_info, set_default_rep};
+use super::localwork::{get_local_work_info, set_local_work};
+use super::nodeurl::{get_nodeurl_info, set_node_url};
+use super::savemessages::{get_save_message_info, set_save_messages};
 use crate::app::clipboard::paste_clip;
 use crate::app::components::storage::ui::setup::setup_password;
 use crate::app::helpers::go_back;
@@ -7,10 +11,6 @@ use cursive::views::{
     Button, Dialog, DummyView, LinearLayout, RadioGroup, ScreensView, TextArea, ViewRef,
 };
 use cursive::Cursive;
-
-use super::defaultrep::{get_default_rep_info, set_default_rep};
-use super::localwork::{get_local_work_info, set_local_work};
-use super::nodeurl::{get_nodeurl_info, set_node_url};
 
 pub fn show_settings(s: &mut Cursive) {
     let data = &s.user_data::<UserData>().unwrap();
@@ -29,6 +29,17 @@ pub fn show_settings(s: &mut Cursive) {
     } else {
         boom_pow_button.select();
     }
+
+    let mut save_messages: RadioGroup<bool> = RadioGroup::new();
+    let mut save_encrypt_button = save_messages.button(true, "Save & Encrypt");
+    let mut forget_button = save_messages.button(false, "Forget");
+    save_messages.set_on_change(set_save_messages);
+    if network.save_messages {
+        save_encrypt_button.select();
+    } else {
+        forget_button.select();
+    }
+
     let mut screens = ScreensView::new();
 
     screens.add_active_screen(
@@ -130,6 +141,44 @@ pub fn show_settings(s: &mut Cursive) {
                     .title("Application Password"),
                 )
                 .child(DummyView)
+                .child(
+                    Dialog::around(
+                        LinearLayout::vertical()
+                            .child(DummyView)
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(save_encrypt_button)
+                                    .child(DummyView)
+                                    .child(DummyView)
+                                    .child(forget_button),
+                            )
+                            .child(DummyView)
+                            .child(
+                                LinearLayout::horizontal()
+                                    .child(Button::new("Info", get_save_message_info)),
+                            ),
+                    )
+                    .title("Messages"),
+                ),
+        )
+        .title("Settings Page 2"),
+    );
+
+    screens.add_screen(
+        Dialog::around(
+            LinearLayout::vertical()
+                .child(DummyView)
+                .child(
+                    LinearLayout::horizontal()
+                        .child(Button::new("Back", go_back))
+                        .child(DummyView)
+                        .child(Button::new("Next page", move |s| {
+                            s.call_on_name("settings", |view: &mut ScreensView<Dialog>| {
+                                view.set_active_screen(view.active_screen() - 2);
+                            })
+                            .unwrap();
+                        })),
+                )
                 .child(DummyView)
                 .child(
                     Dialog::around(
@@ -158,41 +207,6 @@ pub fn show_settings(s: &mut Cursive) {
                             ),
                     )
                     .title("Default Representative"),
-                ),
-        )
-        .title("Settings Page 2"),
-    );
-
-    screens.add_screen(
-        Dialog::around(
-            LinearLayout::vertical()
-                .child(DummyView)
-                .child(
-                    LinearLayout::horizontal()
-                        .child(Button::new("Back", go_back))
-                        .child(DummyView)
-                        .child(Button::new("Next page", move |s| {
-                            s.call_on_name("settings", |view: &mut ScreensView<Dialog>| {
-                                view.set_active_screen(view.active_screen() - 2);
-                            })
-                            .unwrap();
-                        })),
-                )
-                .child(DummyView)
-                .child(
-                    Dialog::around(
-                        LinearLayout::vertical()
-                            .child(DummyView)
-                            .child(TextArea::new().content("Setting 5"))
-                            .child(DummyView)
-                            .child(
-                                LinearLayout::horizontal()
-                                    .child(Button::new("Info", |s| {}))
-                                    .child(DummyView)
-                                    .child(Button::new("Change", |s| {})),
-                            ),
-                    )
-                    .title("Setting 5"),
                 )
                 .child(DummyView)
                 .child(

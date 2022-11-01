@@ -66,7 +66,7 @@ pub fn process_send(s: &mut Cursive, raw: u128, address: String, message: String
                     let wallet = &mut data.wallets[data.wallet_idx];
                     let account = &mut wallet.accounts[wallet.acc_idx];
                     account.balance -= raw;
-                    if with_message {
+                    if with_message && data.coins[data.coin_idx].network.save_messages {
                         account.messages.as_mut().unwrap().push(SavedMessage {
                             outgoing: true,
                             address: address.clone(),

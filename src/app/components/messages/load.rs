@@ -7,6 +7,9 @@ use std::fs;
 
 pub fn load_messages(s: &mut Cursive) -> Result<Vec<SavedMessage>, String> {
     let data = &mut s.user_data::<UserData>().unwrap();
+    if !data.coins[data.coin_idx].network.save_messages {
+        return Err(String::from("Save & Encrypt messages is disabled in settings. Please enable this feature to use the message log."));
+    }
     let wallet = &data.wallets[data.wallet_idx];
     let mut messages: Vec<SavedMessage> = vec![];
     let lookup_key = match data.lookup.get(&wallet.accounts[wallet.acc_idx].address) {

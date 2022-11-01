@@ -62,7 +62,7 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
                     let amount = receivable.amount;
                     let has_message = { receivable.message.is_some() };
                     let mut save_res = Ok(());
-                    if has_message {
+                    if has_message && data.coins[data.coin_idx].network.save_messages {
                         account.messages.as_mut().unwrap().push(SavedMessage {
                             outgoing: false,
                             address: receivable.source.clone(),

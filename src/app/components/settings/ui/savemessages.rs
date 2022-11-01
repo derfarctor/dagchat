@@ -4,9 +4,9 @@ use crate::app::{
 };
 use cursive::{utils::markup::StyledString, views::Dialog, Cursive};
 
-pub fn set_local_work(s: &mut Cursive, local_work: &bool) {
+pub fn set_save_messages(s: &mut Cursive, save_messages: &bool) {
     let data = &mut s.user_data::<UserData>().unwrap();
-    data.coins[data.coin_idx].network.local_work = *local_work;
+    data.coins[data.coin_idx].network.save_messages = *save_messages;
     let colour = get_subtitle_colour(data.coins[data.coin_idx].colour);
     let saved = save_to_storage(s);
     if let Ok(_saved) = saved {
@@ -22,10 +22,10 @@ pub fn set_local_work(s: &mut Cursive, local_work: &bool) {
     }
 }
 
-pub fn get_local_work_info(s: &mut Cursive) {
+pub fn get_save_message_info(s: &mut Cursive) {
     let data = &mut s.user_data::<UserData>().unwrap();
     let colour = data.coins[data.coin_idx].colour;
     s.add_layer(Dialog::info(
-            StyledString::styled("\nEach transaction you make will require a small proof of work to be attached when it is published to the network.\n\nAs such you can choose whether or not to outsource this calculation by selecting the BoomPow option, which will reduce the workload required by your computer (This is especially apparent when sending messages on nano where you may be waiting a long time to generate work locally).\n\nIn the event that the BoomPow API is no longer working and you are having repeated errors making transactions, setting this option to local work will guarantee successful work generation.", colour),
-        ).title("Proof of Work"));
+            StyledString::styled("\nYou can choose whether you want dagchat to Save & Encrypt the messages you have sent and received, for reference in the future. Saved messages can be read, filtered and searched via the messages button which is accessible from the inbox once you have loaded an account.", colour),
+        ).title("Messages"));
 }
