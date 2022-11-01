@@ -1,4 +1,5 @@
 use crate::app::clipboard::paste_clip;
+use crate::app::components::storage::ui::setup::setup_password;
 use crate::app::helpers::go_back;
 use crate::app::userdata::UserData;
 use cursive::view::Nameable;
@@ -119,6 +120,18 @@ pub fn show_settings(s: &mut Cursive) {
                 )
                 .child(DummyView)
                 .child(
+                    Dialog::around(LinearLayout::vertical().child(DummyView).child(
+                        LinearLayout::horizontal().child(Button::new("Change", |s| {
+                            setup_password(s, |s: &mut Cursive| {
+                                s.add_layer(Dialog::info("Updated password successfully."))
+                            })
+                        })),
+                    ))
+                    .title("Application Password"),
+                )
+                .child(DummyView)
+                .child(DummyView)
+                .child(
                     Dialog::around(
                         LinearLayout::vertical()
                             .child(DummyView)
@@ -145,24 +158,7 @@ pub fn show_settings(s: &mut Cursive) {
                             ),
                     )
                     .title("Default Representative"),
-                )
-                .child(DummyView)
-                .child(
-                    Dialog::around(
-                        LinearLayout::vertical()
-                            .child(DummyView)
-                            .child(TextArea::new().content("Setting 4"))
-                            .child(DummyView)
-                            .child(
-                                LinearLayout::horizontal()
-                                    .child(Button::new("Info", |s| {}))
-                                    .child(DummyView)
-                                    .child(Button::new("Change", |s| {})),
-                            ),
-                    )
-                    .title("Setting 4"),
-                )
-                .child(DummyView),
+                ),
         )
         .title("Settings Page 2"),
     );

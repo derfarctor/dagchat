@@ -35,7 +35,7 @@ pub fn display_to_dp(raw: u128, dp: usize, multiplier: &str, ticker: &str) -> St
     let multi = BigDecimal::from_str(multiplier).unwrap();
     let raw_threshold = &multi / BigDecimal::from(10u32.pow(dp as u32));
     if raw < raw_threshold {
-        return format!("{} RAW", raw);
+        format!("{} RAW", raw)
     } else {
         let adjusted = raw / multi;
         let s = adjusted.to_string();

@@ -26,7 +26,7 @@ pub fn set_default_rep(s: &mut Cursive, default_rep: &str) {
 
 pub fn get_default_rep_info(s: &mut Cursive) {
     let data = &mut s.user_data::<UserData>().unwrap();
-    let colour = data.coins[data.coin_idx].colour.clone();
+    let colour = data.coins[data.coin_idx].colour;
     s.add_layer(Dialog::info(StyledString::styled("\nThe default representative is the representative account that any accounts, which are newly opened within the dagchat wallet, will use as their representative.", colour)
         ).title("Default Representative"));
 }

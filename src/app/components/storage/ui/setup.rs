@@ -62,7 +62,7 @@ where
             }
         })
         .button("Info", |s| {
-            let content = "\nThe password you are setting up for dagchat is used to encrypt your wallets, messages (If 'Encrypt and save' messages setting is selected) and address book when they are saved on your device. It should be strong and contain a range of characters (UPPERCASE, lowercase, numb3rs and symbo!s). Without this password, dagchat will not be able to decrypt any of your saved wallets, messages or address book.";
+            let content = "\nThe password you are setting up for dagchat is used to encrypt your wallets, messages (If the 'Encrypt & Save' messages setting is selected) and address book when they are saved on your device.\n\nIt should be strong and contain a range of characters (UPPERCASE, lowercase, numb3rs and symbo!s). \n\nWithout this password, dagchat will not be able to decrypt any of your saved wallets, messages or address book.";
             s.add_layer(Dialog::info(content).title("What is this password?").max_width(80));
         })
         .title("Create a password for dagchat")
