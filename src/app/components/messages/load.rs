@@ -36,16 +36,25 @@ pub fn load_messages(s: &mut Cursive) -> Result<Vec<SavedMessage>, String> {
             return Ok(vec![]);
         }
         let bytes = decrypt_bytes(&encrypted_bytes, &data.password);
-        let messages_opt = bincode::deserialize(&bytes.unwrap()[..]);
-        if messages_opt.is_err() {
+
+        if let Ok(bytes) = bytes {
+            let messages_opt = bincode::deserialize(&bytes[..]);
+            if messages_opt.is_ok() {
+                messages = messages_opt.unwrap();
+            } else {
+                let error = format!(
+                    "Failed to deserialize messages from file at path: {:?}",
+                    messages_file
+                );
+                return Err(error);
+            }
+        } else {
             let error = format!(
-                "Failed to decode messages from file at path: {:?}",
+                "Failed to decrypt messages from file at path: {:?}",
                 messages_file
             );
             return Err(error);
         }
-        messages = messages_opt.unwrap();
     }
-
     Ok(messages)
 }
