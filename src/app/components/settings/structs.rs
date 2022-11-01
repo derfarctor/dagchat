@@ -13,7 +13,7 @@ pub struct Network {
 impl Network {
     pub fn nano() -> Network {
         Network {
-            node_url: String::from("https://proxy.nanos.cc/proxy"),
+            node_url: String::from("https://rainstorm.city/api"),
             work_node_url: String::from("https://app.natrium.io/api"),
             default_rep: String::from(
                 "nano_3zx7rus19yr5qi5zmkawnzo5ehxr7i73xqghhondhfrzftgstgk4gxbubwfq",

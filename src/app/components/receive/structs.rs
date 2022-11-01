@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub struct ReceivableRequest {
     pub action: String,
     pub account: String,
-    //pub count: String,
+    pub count: String,
     pub source: bool,
 }
 

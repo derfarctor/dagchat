@@ -1,11 +1,8 @@
-use cursive::{utils::markup::StyledString, views::Dialog, Cursive};
-
 use crate::{
-    app::{
-        components::storage::save::save_to_storage, themes::get_subtitle_colour, userdata::UserData,
-    },
+    app::{components::storage::save::save_to_storage, userdata::UserData},
     crypto::address::validate_address,
 };
+use cursive::{utils::markup::StyledString, views::Dialog, Cursive};
 
 pub fn set_default_rep(s: &mut Cursive, default_rep: &str) {
     let data = &mut s.user_data::<UserData>().unwrap();

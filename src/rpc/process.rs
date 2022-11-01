@@ -35,6 +35,9 @@ pub fn post_node(body: String, node_url: &str) -> Result<String, String> {
         .body(body.clone())
         .send();
 
+    //let x = res.unwrap().text().unwrap();
+    //eprintln!("Request:{}\n\nResponse:{}\n\n", body, x);
+    //return Ok(x);
     if let Ok(res) = res {
         if !res.status().is_success() {
             //eprintln!("Issue posting to node. Status: {}", res.status());
@@ -44,7 +47,6 @@ pub fn post_node(body: String, node_url: &str) -> Result<String, String> {
     } else {
         Err(res.err().unwrap().to_string())
     }
-    //eprintln!("Request:{}\n\nResponse:{}\n\n", body, response_string);
 }
 
 pub fn publish_block(block: Block, sub: String, network: &Network) -> Result<String, String> {

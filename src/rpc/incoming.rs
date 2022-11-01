@@ -6,8 +6,6 @@ use crate::app::components::{
 use crate::crypto::keys::to_public_key;
 use cursive::utils::Counter;
 
-use serde_json;
-
 pub fn find_incoming(
     target_address: &str,
     node_url: &str,
@@ -16,7 +14,7 @@ pub fn find_incoming(
     let request = ReceivableRequest {
         action: String::from("pending"),
         account: String::from(target_address),
-        //count: String::from("50"),
+        count: String::from("50"),
         source: true,
     };
 
@@ -24,13 +22,22 @@ pub fn find_incoming(
     let response = post_node(body, node_url)?;
     counter.tick(200);
 
-    //eprintln!("{}", &response);
-    let receivables: Result<ReceivableResponse, _> = serde_json::from_str(&response);
+    let receivables: Result<ReceivableResponse, serde_json::error::Error> =
+        serde_json::from_str(&response);
     let receivables = match receivables {
         Ok(receivables) => receivables,
         // If deserialisation failed, either there were no blocks
         // Or an different error was encountered.
-        Err(_) => return Ok(vec![]),
+        Err(error) => {
+            // If the error was missing the blocks field, then it
+            // likely wasn't due to deserialising a response returned
+            // as a result of having no receivables; it was instead a network error.
+            if error.to_string().contains("missing field") {
+                return Err(error.to_string() + ": " + &response);
+            } else {
+                return Ok(vec![]);
+            }
+        }
     };
 
     let receivable_blocks = receivables.blocks.data;
