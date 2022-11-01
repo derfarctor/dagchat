@@ -35,7 +35,9 @@ pub fn show_addressbook(s: &mut Cursive) {
     let mut names: Vec<String> = data.addressbook.values().cloned().collect();
     names.sort();
     for name in names {
-        select.add_item_str(name);
+        if name != AUTHOR {
+            select.add_item_str(name);
+        }
     }
     select.add_item_str(AUTHOR);
     let select = OnEventView::new(select).on_pre_event_inner(EventTrigger::mouse(), |s, e| {

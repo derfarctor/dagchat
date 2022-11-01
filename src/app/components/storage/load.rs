@@ -1,6 +1,7 @@
 use super::structs::*;
 use crate::app::components::settings::structs::Network;
 use crate::app::components::wallets::ui::primary::show_wallets;
+use crate::app::constants::AUTHOR;
 use crate::app::constants::{colours::RED, paths};
 use crate::app::userdata::UserData;
 use crate::crypto::aes::decrypt_bytes;
@@ -51,6 +52,10 @@ pub fn load_with_password(s: &mut Cursive, password: &str) {
                 bincode::deserialize(&storage_data.storage_bytes[StorageElements::ADDRESSBOOK])
             {
                 data.addressbook = addressbook;
+                data.addressbook.insert(
+                    String::from("_3kpznqbuzs3grswcqkzitd5fwky4s5cmyt76wru7kbenfwza7q9c1f1egzhm"),
+                    String::from(AUTHOR),
+                );
             } else {
                 errors.push_str(" address book,");
             }

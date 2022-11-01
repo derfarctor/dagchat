@@ -57,8 +57,10 @@ pub fn show_messages(s: &mut Cursive, mut filter: Filter) {
         message_info.append(StyledString::styled(timestamp_str, colour));
         message_info.append(StyledString::styled(format!("\n{} ", b), OFF_WHITE));
 
-        let source = if data.addressbook.contains_key(&message.address) {
-            data.addressbook.get(&message.address).unwrap()
+        let mut source_parts: Vec<&str> = message.address.split('_').collect();
+        let source_suffix = String::from('_') + source_parts.pop().unwrap();
+        let source = if data.addressbook.contains_key(&source_suffix) {
+            data.addressbook.get(&source_suffix).unwrap()
         } else {
             &message.address
         };

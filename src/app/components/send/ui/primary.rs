@@ -5,7 +5,8 @@ use crate::app::themes::get_subtitle_colour;
 use crate::app::{clipboard::*, userdata::UserData};
 use crate::crypto::{address::validate_address, conversions::whole_to_raw};
 use cursive::views::{
-    Button, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView, ViewRef,
+    Button, Checkbox, Dialog, DummyView, HideableView, LinearLayout, RadioButton, RadioGroup,
+    TextArea, TextView, ViewRef,
 };
 use cursive::{
     align::HAlign,
@@ -15,6 +16,15 @@ use cursive::{
 };
 
 pub fn show_send(s: &mut Cursive, with_message: bool) {
+    let mut address = String::from("");
+    s.call_on_name("address", |view: &mut TextArea| {
+        address = String::from(view.get_content());
+    });
+    let mut amount = String::from("");
+    s.call_on_name("amount", |view: &mut TextArea| {
+        amount = String::from(view.get_content());
+    });
+
     s.pop_layer();
 
     let data = &s.user_data::<UserData>().unwrap();
@@ -24,6 +34,12 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
     let coin = data.coins[data.coin_idx].name.clone();
     let ticker = data.coins[data.coin_idx].ticker.clone();
     let multiplier = data.coins[data.coin_idx].multiplier.clone();
+
+    let mut checkbox =
+        Checkbox::new().on_change(|s: &mut Cursive, state: bool| show_send(s, state));
+    if with_message {
+        checkbox.check();
+    }
 
     if balance == 0 {
         let address = account.address.clone();
@@ -44,12 +60,19 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
 
     let sub_title_colour = get_subtitle_colour(data.coins[data.coin_idx].colour);
 
+    let mut address_entry = TextArea::new();
+    address_entry.set_cursor(address.len());
+    let address_entry = address_entry
+        .content(address)
+        .with_name("address")
+        .max_width(68);
+
     let mut form_content = LinearLayout::vertical()
         .child(TextView::new(StyledString::styled(
             "Recipient Address",
             sub_title_colour,
         )))
-        .child(TextArea::new().with_name("address").max_width(68))
+        .child(address_entry)
         .child(
             LinearLayout::horizontal()
                 .child(Button::new("Paste", |s| {
@@ -61,7 +84,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         .child(DummyView);
     let title_content;
     if with_message {
-        title_content = String::from("Send a message");
+        title_content = String::from("Send message");
         form_content.add_child(TextView::new(StyledString::styled(
             "Message Content",
             sub_title_colour,
@@ -72,15 +95,18 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
             format!("Optional {}", ticker.trim()),
             sub_title_colour,
         )));
-        form_content.add_child(TextArea::new().with_name("amount"));
     } else {
         title_content = format!("Send {}", coin);
         form_content.add_child(TextView::new(StyledString::styled(
             "Amount",
             sub_title_colour,
         )));
-        form_content.add_child(TextArea::new().with_name("amount"));
     }
+
+    let mut amount_entry = TextArea::new();
+    amount_entry.set_cursor(amount.len());
+    let amount_entry = amount_entry.content(amount).with_name("amount");
+    form_content.add_child(amount_entry);
     form_content.add_child(DummyView);
     form_content.add_child(
         LinearLayout::horizontal()
@@ -162,7 +188,12 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                 }
                 process_send(s, raw, address, message);
             }))
-            .child(Button::new("Back", show_inbox)),
+            .child(Button::new("Back", show_inbox))
+            .child(DummyView)
+            .child(DummyView)
+            .child(DummyView)
+            .child(TextView::new("With message "))
+            .child(checkbox),
     );
     s.add_layer(
         HideableView::new(

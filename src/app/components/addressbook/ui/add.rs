@@ -52,7 +52,9 @@ pub fn add_addressbook(s: &mut Cursive) {
                         return;
                     }
                     let data = &mut s.user_data::<UserData>().unwrap();
-                    data.addressbook.insert(address, name);
+                    let mut address_parts: Vec<&str> = address.split('_').collect();
+                    let address = address_parts.pop().unwrap();
+                    data.addressbook.insert(String::from("_") + address, name);
                     let saved = save_to_storage(s);
                     if let Ok(_saved) = saved {
                         s.pop_layer();

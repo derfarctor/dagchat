@@ -1,6 +1,7 @@
 use super::process::process_receive;
 use crate::app::components::messages::readmessage::read_message;
 use crate::app::constants::colours::RED;
+use crate::app::constants::EMPTY_MSG;
 use crate::app::{
     clipboard::copy_to_clip,
     constants::{colours::OFF_WHITE, SHOW_TO_DP},
@@ -20,6 +21,9 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
     match select.selected_id() {
         None => s.add_layer(Dialog::info("No receivable selected.")),
         Some(focus) => {
+            if select.get_item(focus).unwrap().0 == EMPTY_MSG {
+                return;
+            };
             let data = &mut s.user_data::<UserData>().unwrap();
             let wallet = &mut data.wallets[data.wallet_idx];
             let account = &mut wallet.accounts[wallet.acc_idx];
@@ -84,16 +88,18 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                 receive_label = String::from("Mark read");
             }
 
-            let sender = if data.addressbook.contains_key(&receivable.source) {
-                data.addressbook.get(&receivable.source).unwrap().clone()
+            let mut source_parts: Vec<&str> = receivable.source.split('_').collect();
+            let source_suffix = String::from('_') + source_parts.pop().unwrap();
+
+            let sender = receivable.source.clone();
+
+            let from = if data.addressbook.contains_key(&source_suffix) {
+                data.addressbook.get(&source_suffix).unwrap()
             } else {
-                receivable.source.clone()
+                &sender
             };
-
             content.add_child(TextView::new(StyledString::styled("From", colour)));
-            content
-                .add_child(TextView::new(StyledString::styled(&sender, OFF_WHITE)).fixed_width(65));
-
+            content.add_child(TextView::new(StyledString::styled(from, OFF_WHITE)).fixed_width(65));
             s.add_layer(
                 Dialog::around(content)
                     .button(receive_label, move |s| {
