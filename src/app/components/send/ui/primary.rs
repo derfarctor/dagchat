@@ -3,10 +3,10 @@ use crate::app::components::addressbook::ui::primary::show_addressbook;
 use crate::app::components::inbox::ui::primary::show_inbox;
 use crate::app::themes::get_subtitle_colour;
 use crate::app::{clipboard::*, userdata::UserData};
+use crate::crypto::conversions::raw_to_whole;
 use crate::crypto::{address::validate_address, conversions::whole_to_raw};
 use cursive::views::{
-    Button, Checkbox, Dialog, DummyView, HideableView, LinearLayout, RadioButton, RadioGroup,
-    TextArea, TextView, ViewRef,
+    Button, Checkbox, Dialog, DummyView, HideableView, LinearLayout, TextArea, TextView, ViewRef,
 };
 use cursive::{
     align::HAlign,
@@ -35,8 +35,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
     let ticker = data.coins[data.coin_idx].ticker.clone();
     let multiplier = data.coins[data.coin_idx].multiplier.clone();
 
-    let mut checkbox =
-        Checkbox::new().on_change(|s: &mut Cursive, state: bool| show_send(s, state));
+    let mut checkbox = Checkbox::new().on_change(show_send);
     if with_message {
         checkbox.check();
     }
@@ -83,6 +82,10 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         )
         .child(DummyView);
     let title_content;
+
+    let bal = balance.to_string();
+    let multi = multiplier.clone();
+
     if with_message {
         title_content = String::from("Send message");
         form_content.add_child(TextView::new(StyledString::styled(
@@ -97,10 +100,20 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         )));
     } else {
         title_content = format!("Send {}", coin);
-        form_content.add_child(TextView::new(StyledString::styled(
-            "Amount",
-            sub_title_colour,
-        )));
+        form_content.add_child(
+            LinearLayout::horizontal()
+                .child(TextView::new(StyledString::styled(
+                    "Amount",
+                    sub_title_colour,
+                )))
+                .child(DummyView)
+                .child(Button::new("All", move |s| {
+                    s.call_on_name("amount", |view: &mut TextArea| {
+                        view.set_content(raw_to_whole(&bal, &multi))
+                    })
+                    .unwrap();
+                })),
+        );
     }
 
     let mut amount_entry = TextArea::new();

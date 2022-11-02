@@ -29,6 +29,13 @@ pub fn whole_to_raw(whole: String, multiplier: &str) -> Option<u128> {
     }
 }
 
+pub fn raw_to_whole(raw: &str, multiplier: &str) -> String {
+    let amount = BigDecimal::from_str(raw).unwrap();
+    let multiplier = BigDecimal::from_str(multiplier).unwrap();
+    let whole = amount / multiplier;
+    whole.to_string()
+}
+
 pub fn display_to_dp(raw: u128, dp: usize, multiplier: &str, ticker: &str) -> String {
     let raw_string = raw.to_string();
     let raw = BigDecimal::from_str(&raw_string).unwrap();

@@ -65,7 +65,7 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                     plaintext = message.plaintext.clone();
                 }
                 content.add_child(
-                    TextView::new(plaintext)
+                    TextView::new(String::from("\n") + &plaintext)
                         .scrollable()
                         .max_width(80)
                         .max_height(6),

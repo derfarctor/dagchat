@@ -1,5 +1,5 @@
-pub const VERSION: &str = "beta v1.0.0";
-pub const SHOW_TO_DP: usize = 16;
+pub const VERSION: &str = "v1.0.0 pre-release";
+pub const SHOW_TO_DP: usize = 12;
 pub const AUTHOR: &str = "derfarctor (Author)";
 pub const EMPTY_MSG: &str = "Nothing to receive...";
 

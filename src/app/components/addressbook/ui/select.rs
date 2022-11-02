@@ -1,4 +1,4 @@
-use crate::app::{constants::AUTHOR, userdata::UserData};
+use crate::app::userdata::UserData;
 use cursive::{
     views::{Dialog, HideableView, TextArea},
     Cursive,
@@ -22,10 +22,10 @@ pub fn select_addressbook(s: &mut Cursive, name: &str) {
     }
     let idx_of_ = address.find('_').unwrap();
     let prefix = &address[..idx_of_ + 1];
-    let network_prefix = (&data.coins[data.coin_idx].prefix).clone();
+    let network_prefix = &data.coins[data.coin_idx].prefix;
     if network_prefix != prefix {
         let non_prefix = &address[idx_of_ + 1..];
-        address = network_prefix + non_prefix
+        address = network_prefix.to_owned() + non_prefix
     }
 
     s.call_on_name("hideable", |view: &mut HideableView<Dialog>| {

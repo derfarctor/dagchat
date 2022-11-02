@@ -42,8 +42,7 @@ pub fn remove_addressbook(s: &mut Cursive) {
         show_addressbook(s);
     } else {
         let data = &mut s.user_data::<UserData>().unwrap();
-        data.addressbook
-            .insert(String::from(address), String::from(name));
+        data.addressbook.insert(address, String::from(name));
         s.add_layer(
             Dialog::info(StyledString::styled(saved.err().unwrap(), RED))
                 .title("Error saving address book data."),
