@@ -1,4 +1,4 @@
-pub const VERSION: &str = "v1.0.0 pre-release";
+pub const VERSION: &str = "v1.0.0-test";
 pub const SHOW_TO_DP: usize = 12;
 pub const AUTHOR: &str = "derfarctor (Author)";
 pub const EMPTY_MSG: &str = "Nothing to receive...";
@@ -9,7 +9,7 @@ pub mod crypto {
 }
 
 pub mod paths {
-    pub const DATA_DIR: &str = "dagchat-beta";
+    pub const DATA_DIR: &str = "dagchat";
     pub const MESSAGES_DIR: &str = "messages";
     pub const STORAGE: &str = "storage.dagchat";
 }
