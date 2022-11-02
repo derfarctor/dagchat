@@ -1,4 +1,5 @@
 use super::super::load::load_with_password;
+use crate::app::components::title::ui::primary::show_title;
 use crate::app::components::wallets::ui::primary::show_wallets;
 use crate::app::constants::paths;
 use crate::app::userdata::UserData;
@@ -42,12 +43,19 @@ pub fn show_get_password(s: &mut Cursive, data_path: PathBuf) {
                             .with_name("password"),
                     )
                     .child(DummyView)
-                    .child(Button::new("Submit", move |s| {
-                        let password = s
-                            .call_on_name("password", |view: &mut EditView| view.get_content())
-                            .unwrap();
-                        load_with_password(s, &password);
-                    })),
+                    .child(
+                        LinearLayout::horizontal()
+                            .child(Button::new("Submit", move |s| {
+                                let password = s
+                                    .call_on_name("password", |view: &mut EditView| {
+                                        view.get_content()
+                                    })
+                                    .unwrap();
+                                load_with_password(s, &password);
+                            }))
+                            .child(DummyView)
+                            .child(Button::new("Back", show_title)),
+                    ),
             )
             .title("Enter password")
             .max_width(80),
