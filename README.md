@@ -1,17 +1,23 @@
 # dagchat
 
-### An open source wallet with end-to-end encrypted, on chain messaging for **nano** and **banano** using the dagchat protocol.
+### An open source wallet with end-to-end encrypted, on chain messaging for **nano** and **banano**.
 <br>
 
 ***Disclaimer:** There are no guarantees when it comes to the cryptographic security of wallets saved or messages sent with dagchat. Every care has been taken to ensure safety within the on-device wallet encryption, and the on-chain end to end encrypted messaging implementations, but this repository has not undergone a professional audit of any kind.*
 
 # Features
-- ### Import multiple wallets using a mnemonic phrase, hex seed, or even private key. Each wallet supports many accounts which can be shown procedurally or by specifying an index. <br>![image](screenshots/wallets.PNG) ![image](screenshots/accounts.PNG)
-- ### Send on chain, end to end encrypted memos/messages using the dagchat protocol. <br>![image](screenshots/sendmessage.PNG)
-- ### Receive your nano and banano, and read incoming messages all in the same place. <br>![image](screenshots/incoming.PNG) 
-- ### Messages are identified automatically by the wallet. <br>![image](screenshots/message.png)
-- ### The address book lets you easily record contacts and replaces long addresses with the short contact name wherever possible. <br>![image](screenshots/addressbook.PNG) ![image](screenshots/addressbookexample.PNG)
-- ### Messages when sent and received are automatically encrypted and saved to your computer. They can be read again in the messages log tab. <br>![image](screenshots/messagehistory.png)
+- #### Import multiple wallets using a mnemonic phrase, hex seed, or even private key. Each wallet supports many accounts which can be shown procedurally or by specifying an index.
+![image](screenshots/wallets.PNG) ![image](screenshots/accounts.PNG)
+- #### Send on chain, end to end encrypted memos/messages using the dagchat protocol.
+![image](screenshots/sendmessage.PNG)
+- #### Receive your nano and banano, and read incoming messages all in the same place.
+![image](screenshots/incoming.PNG) 
+- #### Messages are identified automatically by the wallet.
+![image](screenshots/message.png)
+- #### The address book lets you easily record contacts and replaces long addresses with the short contact name wherever possible.
+![image](screenshots/addressbook.PNG) ![image](screenshots/addressbookexample.PNG)
+- #### Messages when sent and received are automatically encrypted and saved to your computer. They can be read again in the messages log tab.
+![image](screenshots/messagehistory.png)
 
 
 # Building from source
