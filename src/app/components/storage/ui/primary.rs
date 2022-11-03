@@ -54,7 +54,10 @@ pub fn show_get_password(s: &mut Cursive, data_path: PathBuf) {
                                 load_with_password(s, &password);
                             }))
                             .child(DummyView)
-                            .child(Button::new("Back", show_title)),
+                            .child(Button::new("Back", |s| {
+                                s.pop_layer();
+                                show_title(s);
+                            })),
                     ),
             )
             .title("Enter password")

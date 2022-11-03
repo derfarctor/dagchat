@@ -1,4 +1,4 @@
-pub const VERSION: &str = "v1.0.0-test";
+pub const VERSION: &str = "v1.0.0";
 pub const SHOW_TO_DP: usize = 12;
 pub const AUTHOR: &str = "derfarctor (Author)";
 pub const AUTHOR_ADDR: &str = "_3kpznqbuzs3grswcqkzitd5fwky4s5cmyt76wru7kbenfwza7q9c1f1egzhm";

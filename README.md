@@ -1,9 +1,9 @@
 # dagchat
 
-### An open source wallet with end-to-end encrypted, on chain messaging for **nano** and **banano**.
+### An open source wallet with end-to-end encrypted memos and messages for **nano** and **banano**.
 <br>
 
-***Disclaimer:** There are no guarantees when it comes to the cryptographic security of wallets saved or messages sent with dagchat. Every care has been taken to ensure safety within the on-device wallet encryption, and the on-chain end to end encrypted messaging implementations, but this repository has not undergone a professional audit of any kind.*
+***Disclaimer:** There are no guarantees when it comes to the cryptographic security of wallets saved or messages sent with dagchat. Whilst encrypted, messages are sent on a public blockchain and will remain there for the foreseable future. Whilst I've taken great care to make dagchat's cryptographic implementations secure, this repository has not undergone a professional audit of any kind.*
 
 # Features
 - #### Import multiple wallets using a mnemonic phrase, hex seed, or even private key. Each wallet supports many accounts which can be shown procedurally or by specifying an index.
