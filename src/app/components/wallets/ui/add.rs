@@ -85,7 +85,6 @@ fn show_from_mnemonic(s: &mut Cursive, name: String) {
 fn process_from_mnemonic(s: &mut Cursive, mnemonic: &str, name: String) {
     let seed = validate_mnemonic(mnemonic);
     let content;
-    s.pop_layer();
     if !mnemonic.is_empty() && seed.is_some() {
         let seed_bytes = seed.unwrap();
         let data = &s.user_data::<UserData>().unwrap();
@@ -100,10 +99,7 @@ fn process_from_mnemonic(s: &mut Cursive, mnemonic: &str, name: String) {
         });
     } else {
         content = "The mnemonic you entered was not valid.";
-        s.add_layer(
-            Dialog::around(TextView::new(content))
-                .button("Back", move |s| show_from_mnemonic(s, name.clone())),
-        );
+        s.add_layer(Dialog::info(content));
     }
 }
 
@@ -206,7 +202,6 @@ pub fn new_wallet_name(s: &mut Cursive) {
 
 pub fn new_wallet(s: &mut Cursive, name: &str) {
     s.pop_layer();
-    s.pop_layer();
     let data = &s.user_data::<UserData>().unwrap();
     let mut csprng = rand::thread_rng();
     let mut seed_bytes = [0u8; 32];
@@ -226,6 +221,7 @@ fn setup_wallet<F: 'static>(s: &mut Cursive, wallet: Wallet, on_success: F)
 where
     F: Fn(&mut Cursive),
 {
+    s.pop_layer();
     let data = &mut s.user_data::<UserData>().unwrap();
     data.wallets.push(wallet);
     data.wallet_idx = data.wallets.len() - 1;
