@@ -34,7 +34,7 @@ impl Network {
             ),
             send_thresh: String::from("FFFFFE0000000000"),
             receive_thresh: String::from("FFFFFE0000000000"),
-            local_work: false,
+            local_work: true,
             save_messages: true,
         }
     }

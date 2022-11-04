@@ -55,17 +55,20 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                         plaintext = plaintext_res;
                         message.plaintext = plaintext.clone();
                     } else {
-                        s.add_layer(Dialog::info(StyledString::styled(
-                            format!("Failed to read message. Error: {}", read_res.err().unwrap()),
-                            RED,
-                        )));
-                        return;
+                       plaintext = format!("Failed to read message. Error: {}", read_res.err().unwrap());  
+                        receivable.message = None;
                     }
                 } else {
                     plaintext = message.plaintext.clone();
                 }
+                let plaintext = if receivable.message.is_none() {
+                    StyledString::styled(String::from("\n") + &plaintext, RED)
+                } else {
+                    StyledString::plain(String::from("\n") + &plaintext)
+                };
+
                 content.add_child(
-                    TextView::new(String::from("\n") + &plaintext)
+                    TextView::new(plaintext)
                         .scrollable()
                         .max_width(80)
                         .max_height(6),
