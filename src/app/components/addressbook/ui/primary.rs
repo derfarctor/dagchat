@@ -1,4 +1,7 @@
-use super::{add::add_addressbook, remove::remove_addressbook, select::select_addressbook};
+use super::{
+    add::add_addressbook, info::contact_info, remove::remove_addressbook,
+    select::select_addressbook,
+};
 use crate::app::{constants::AUTHOR, userdata::UserData};
 use cursive::event::{Event, EventResult, EventTrigger, MouseEvent};
 use cursive::traits::{Nameable, Resizable, Scrollable};
@@ -16,6 +19,7 @@ pub fn show_addressbook(s: &mut Cursive) {
     let buttons = LinearLayout::vertical()
         .child(DummyView)
         .child(Button::new("Add", add_addressbook))
+        .child(Button::new("Info", contact_info))
         .child(Button::new("Remove", remove_addressbook))
         .child(DummyView)
         .child(Button::new("Back", |s| {
