@@ -54,6 +54,16 @@ pub fn add_addressbook(s: &mut Cursive) {
                     let data = &mut s.user_data::<UserData>().unwrap();
                     let mut address_parts: Vec<&str> = address.split('_').collect();
                     let address = address_parts.pop().unwrap();
+                    let mut old_address = String::from("");
+                    for (contact_address, contact_name) in &data.addressbook {
+                        if name == *contact_name {
+                            old_address = contact_address.clone();
+                            break;
+                        }
+                    }
+                    if !old_address.is_empty() {
+                        data.addressbook.remove(&old_address);
+                    }
                     data.addressbook.insert(String::from("_") + address, name);
                     let saved = save_to_storage(s);
                     if let Ok(_saved) = saved {
