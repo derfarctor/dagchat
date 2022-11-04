@@ -1,4 +1,6 @@
-use crate::app::{constants::colours::OFF_WHITE, userdata::UserData};
+use crate::app::{
+    clipboard::copy_to_clip, constants::colours::OFF_WHITE, helpers::go_back, userdata::UserData,
+};
 use cursive::{
     utils::markup::StyledString,
     views::{Dialog, OnEventView, SelectView},
@@ -39,6 +41,10 @@ pub fn contact_info(s: &mut Cursive) {
     let mut contact_info = StyledString::styled("Name\n", colour);
     contact_info.append(StyledString::styled(name, OFF_WHITE));
     contact_info.append(StyledString::styled("\n\nAddress\n", colour));
-    contact_info.append(StyledString::styled(address, OFF_WHITE));
-    s.add_layer(Dialog::info(contact_info));
+    contact_info.append(StyledString::styled(&address, OFF_WHITE));
+    s.add_layer(
+        Dialog::text(contact_info)
+            .button("Back", go_back)
+            .button("Copy address", move |s| copy_to_clip(s, address.clone())),
+    );
 }

@@ -4,8 +4,11 @@ use cursive::{
     Cursive,
 };
 
+use super::info::contact_info;
+
 pub fn select_addressbook(s: &mut Cursive, name: &str) {
     if s.call_on_name("address", |_: &mut TextArea| {}).is_none() {
+        contact_info(s);
         return;
     }
     s.pop_layer();
@@ -18,6 +21,7 @@ pub fn select_addressbook(s: &mut Cursive, name: &str) {
     for (contact_address, contact_name) in &data.addressbook {
         if name == contact_name {
             address = contact_address.to_owned();
+            break;
         }
     }
     let idx_of_ = address.find('_').unwrap();

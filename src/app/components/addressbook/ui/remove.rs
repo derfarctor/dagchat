@@ -32,6 +32,7 @@ pub fn remove_addressbook(s: &mut Cursive) {
     for (contact_address, contact_name) in &data.addressbook {
         if name == contact_name {
             address = contact_address.to_owned();
+            break;
         }
     }
     data.addressbook.remove(&address).unwrap();
