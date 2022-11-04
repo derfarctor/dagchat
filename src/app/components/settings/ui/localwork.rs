@@ -4,9 +4,9 @@ use crate::app::{
 };
 use cursive::{utils::markup::StyledString, views::Dialog, Cursive};
 
-pub fn set_local_work(s: &mut Cursive, local_work: &bool) {
+pub fn set_local_work(s: &mut Cursive, local_work: &usize) {
     let data = &mut s.user_data::<UserData>().unwrap();
-    data.coins[data.coin_idx].network.local_work = *local_work;
+    data.coins[data.coin_idx].network.work_type = *local_work;
     let colour = get_subtitle_colour(data.coins[data.coin_idx].colour);
     let saved = save_to_storage(s);
     if let Ok(_saved) = saved {

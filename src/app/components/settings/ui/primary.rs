@@ -3,6 +3,7 @@ use super::localwork::{get_local_work_info, set_local_work};
 use super::nodeurl::{get_nodeurl_info, set_node_url};
 use super::savemessages::{get_save_message_info, set_save_messages};
 use crate::app::clipboard::paste_clip;
+use super::super::structs::WorkType;
 use crate::app::components::storage::ui::setup::setup_password;
 use crate::app::helpers::go_back;
 use crate::app::userdata::UserData;
@@ -20,13 +21,13 @@ pub fn show_settings(s: &mut Cursive) {
     let coin_name = coin.name.clone();
     let node_url = network.node_url.clone();
 
-    let mut local_work: RadioGroup<bool> = RadioGroup::new();
-    let mut local_work_button = local_work.button(true, "Local");
-    let mut boom_pow_button = local_work.button(false, "BoomPow");
+    let mut local_work: RadioGroup<usize> = RadioGroup::new();
+    let mut local_work_button = local_work.button(WorkType::LOCAL, "Local");
+    let mut boom_pow_button = local_work.button(WorkType::BOOMPOW, "BoomPow");
     local_work.set_on_change(set_local_work);
-    if network.local_work {
+    if network.work_type == WorkType::LOCAL {
         local_work_button.select();
-    } else {
+    } else if network.work_type == WorkType::BOOMPOW {
         boom_pow_button.select();
     }
 

@@ -1,4 +1,4 @@
-use crate::app::components::settings::structs::Network;
+use crate::app::components::settings::structs::*;
 
 use super::blockinfo::Block;
 use serde;
@@ -50,7 +50,7 @@ pub fn post_node(body: String, node_url: &str) -> Result<String, String> {
 }
 
 pub fn publish_block(block: Block, sub: String, network: &Network) -> Result<String, String> {
-    let body = if network.local_work {
+    let body = if network.work_type == WorkType::LOCAL | WorkType::WORK_SERVER {
         serde_json::to_string(&ProcessRequest {
             action: String::from("process"),
             json_block: String::from("true"),
@@ -69,10 +69,10 @@ pub fn publish_block(block: Block, sub: String, network: &Network) -> Result<Str
         .unwrap()
     };
 
-    let node_url = if network.local_work {
+    let node_url = if network.work_type == WorkType::LOCAL | WorkType::WORK_SERVER  {
         &network.node_url
     } else {
-        &network.work_node_url
+        &network.appditto_node_url
     };
 
     post_node(body, node_url)

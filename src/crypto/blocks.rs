@@ -1,5 +1,6 @@
 use super::{address::get_address, pow::*};
 use crate::app::coin::Coin;
+use crate::app::components::settings::structs::WorkType;
 use crate::rpc::blockinfo::Block;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
@@ -52,7 +53,7 @@ pub fn get_signed_block(
         expanded_secret.sign(block_hash, &ed25519_dalek::PublicKey::from(&secret));
     let signed_bytes = internal_signed.to_bytes();
 
-    let work = if coin.network.local_work {
+    let work = if coin.network.work_type == WorkType::LOCAL {
         // If it is the open block then use the public key to generate work.
         // If not, use previous block hash.
         let mut previous_hash = previous;
@@ -64,10 +65,15 @@ pub fn get_signed_block(
         } else {
             u64::from_str_radix(&coin.network.send_thresh, 16).unwrap()
         };
-
         generate_work(previous_hash, threshold)
-    } else {
+    } else if coin.network.work_type == WorkType::BOOMPOW {
         String::from("")
+    } else if coin.network.work_type == WorkType::WORK_SERVER {
+        // Needs implementing.
+        String::from("")
+
+    } else {
+        panic!("Unknown network WorkType.");
     };
 
     let block = Block {
