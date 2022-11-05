@@ -44,6 +44,7 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
                     if !error.is_empty() {
                         s.set_autorefresh(false);
                         s.pop_layer();
+                        s.pop_layer();
                         show_inbox(s);
                         s.add_layer(Dialog::info(StyledString::styled(
                             format!("Receive failed. Error: {}", error),

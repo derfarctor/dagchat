@@ -1,6 +1,8 @@
 use super::{address::get_address, pow::*};
 use crate::app::coin::Coin;
+use crate::app::components::settings::structs::WorkType;
 use crate::rpc::blockinfo::Block;
+use crate::rpc::workgenerate::get_server_work;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 
@@ -43,7 +45,7 @@ pub fn get_signed_block(
     block_hash: &[u8; 32],
     coin: &Coin,
     sub: &str,
-) -> Block {
+) -> Result<Block, String> {
     let secret = ed25519_dalek::SecretKey::from_bytes(priv_k).unwrap();
     let public = ed25519_dalek::PublicKey::from(&secret);
     let expanded_secret = ed25519_dalek::ExpandedSecretKey::from(&secret);
@@ -52,22 +54,35 @@ pub fn get_signed_block(
         expanded_secret.sign(block_hash, &ed25519_dalek::PublicKey::from(&secret));
     let signed_bytes = internal_signed.to_bytes();
 
-    let work = if coin.network.local_work {
+    let work_type = coin.network.work_type;
+    let work = if work_type == WorkType::CPU || work_type == WorkType::WORK_SERVER {
         // If it is the open block then use the public key to generate work.
         // If not, use previous block hash.
         let mut previous_hash = previous;
         if previous_hash == &[0u8; 32] {
             previous_hash = public.as_bytes();
         }
-        let threshold = if sub == "receive" {
-            u64::from_str_radix(&coin.network.receive_thresh, 16).unwrap()
-        } else {
-            u64::from_str_radix(&coin.network.send_thresh, 16).unwrap()
-        };
 
-        generate_work(previous_hash, threshold)
-    } else {
+        if work_type == WorkType::CPU {
+            let threshold = if sub == "receive" {
+                u64::from_str_radix(&coin.network.receive_thresh, 16).unwrap()
+            } else {
+                u64::from_str_radix(&coin.network.send_thresh, 16).unwrap()
+            };
+            generate_work(previous_hash, threshold)
+        } else {
+            let threshold = if sub == "receive" {
+                &coin.network.receive_thresh
+            } else {
+                &coin.network.send_thresh
+            };
+
+            get_server_work(previous_hash, &threshold, &coin.network.work_server_url)?
+        }
+    } else if work_type == WorkType::BOOMPOW {
         String::from("")
+    } else {
+        panic!("Unknown network WorkType.");
     };
 
     let block = Block {
@@ -80,6 +95,5 @@ pub fn get_signed_block(
         work,
         signature: hex::encode(&signed_bytes),
     };
-
-    block
+    Ok(block)
 }

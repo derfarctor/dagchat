@@ -32,6 +32,6 @@ pub fn change_rep(
         &block_hash,
         coin,
         &sub,
-    );
+    )?;
     publish_block(block, sub, &coin.network)
 }

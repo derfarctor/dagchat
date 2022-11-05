@@ -1,8 +1,9 @@
-use crate::app::components::settings::structs::Network;
-
 use super::blockinfo::Block;
+use crate::app::components::settings::structs::*;
+use crate::app::constants::REQ_TIMEOUT;
 use serde;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ProcessRequest {
@@ -26,10 +27,11 @@ struct ProcessResponse {
     hash: String,
 }
 
-pub fn post_node(body: String, node_url: &str) -> Result<String, String> {
+pub fn post_node(body: String, node_url: &str, timeout: u64) -> Result<String, String> {
     let client = reqwest::blocking::Client::new();
     let res = client
         .post(node_url)
+        .timeout(Duration::from_secs(timeout))
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .body(body)
@@ -50,30 +52,24 @@ pub fn post_node(body: String, node_url: &str) -> Result<String, String> {
 }
 
 pub fn publish_block(block: Block, sub: String, network: &Network) -> Result<String, String> {
-    let body = if network.local_work {
-        serde_json::to_string(&ProcessRequest {
+    if network.work_type == WorkType::CPU || network.work_type == WorkType::WORK_SERVER {
+        let body = serde_json::to_string(&ProcessRequest {
             action: String::from("process"),
             json_block: String::from("true"),
             subtype: sub,
             block,
         })
-        .unwrap()
+        .unwrap();
+        post_node(body, &network.node_url, REQ_TIMEOUT)
     } else {
-        serde_json::to_string(&BoomPowProcessRequest {
+        let body = serde_json::to_string(&BoomPowProcessRequest {
             action: String::from("process"),
             json_block: String::from("true"),
             subtype: sub,
             do_work: true,
             block,
         })
-        .unwrap()
-    };
-
-    let node_url = if network.local_work {
-        &network.node_url
-    } else {
-        &network.work_node_url
-    };
-
-    post_node(body, node_url)
+        .unwrap();
+        post_node(body, &network.appditto_node_url, REQ_TIMEOUT)
+    }
 }
