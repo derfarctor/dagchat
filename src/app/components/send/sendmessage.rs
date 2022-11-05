@@ -76,7 +76,7 @@ pub fn send_message(
             &block_hash,
             coin,
             &sub,
-        );
+        )?;
         if block_num == 0 {
             first_block_hash = block_hash;
         }
@@ -102,7 +102,7 @@ pub fn send_message(
         &block_hash,
         coin,
         &sub,
-    );
+    )?;
     publish_block(block, sub, &coin.network)?;
     Ok(hex::encode(last_block_hash))
 }

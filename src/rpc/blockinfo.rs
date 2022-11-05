@@ -1,3 +1,5 @@
+use crate::app::constants::REQ_TIMEOUT;
+
 use super::process::post_node;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -57,7 +59,7 @@ pub fn get_blocks_info(hashes: Vec<String>, node_url: &str) -> Result<BlocksInfo
     };
     let body = serde_json::to_string(&request).unwrap();
     //eprintln!("Body: {}", body);
-    let response = post_node(body, node_url)?;
+    let response = post_node(body, node_url, REQ_TIMEOUT)?;
 
     let blocks_info_response: Result<BlocksInfoResponse, _> = serde_json::from_str(&response);
     match blocks_info_response {

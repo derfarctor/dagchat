@@ -1,15 +1,21 @@
+use super::super::structs::WorkType;
 use super::defaultrep::{get_default_rep_info, set_default_rep};
-use super::localwork::{get_local_work_info, set_local_work};
 use super::nodeurl::{get_nodeurl_info, set_node_url};
 use super::savemessages::{get_save_message_info, set_save_messages};
+use super::workserverurl::set_work_server_url;
+use super::worktype::{get_local_work_info, set_work_type};
 use crate::app::clipboard::paste_clip;
-use super::super::structs::WorkType;
 use crate::app::components::storage::ui::setup::setup_password;
+use crate::app::constants::colours::RED;
 use crate::app::helpers::go_back;
+use crate::app::themes::get_subtitle_colour;
 use crate::app::userdata::UserData;
+use crate::rpc::workgenerate::test_work_server;
+use cursive::utils::markup::StyledString;
 use cursive::view::Nameable;
 use cursive::views::{
-    Button, Dialog, DummyView, LinearLayout, RadioGroup, ScreensView, TextArea, ViewRef,
+    Button, Dialog, DummyView, HideableView, LinearLayout, RadioGroup, ScreensView, TextArea,
+    TextView, ViewRef,
 };
 use cursive::Cursive;
 
@@ -20,16 +26,13 @@ pub fn show_settings(s: &mut Cursive) {
     let default_rep = &network.default_rep;
     let coin_name = coin.name.clone();
     let node_url = network.node_url.clone();
+    let work_server_url = network.work_server_url.clone();
 
-    let mut local_work: RadioGroup<usize> = RadioGroup::new();
-    let mut local_work_button = local_work.button(WorkType::LOCAL, "Local");
-    let mut boom_pow_button = local_work.button(WorkType::BOOMPOW, "BoomPow");
-    local_work.set_on_change(set_local_work);
-    if network.work_type == WorkType::LOCAL {
-        local_work_button.select();
-    } else if network.work_type == WorkType::BOOMPOW {
-        boom_pow_button.select();
-    }
+    let mut work_type: RadioGroup<usize> = RadioGroup::new();
+    let mut cpu_button = work_type.button(WorkType::CPU, "CPU");
+    let mut boom_pow_button = work_type.button(WorkType::BOOMPOW, "BoomPow");
+    let mut work_server_button = work_type.button(WorkType::WORK_SERVER, "Work Server");
+    work_type.set_on_change(set_work_type);
 
     let mut save_messages: RadioGroup<bool> = RadioGroup::new();
     let mut save_encrypt_button = save_messages.button(true, "Save & Encrypt");
@@ -41,8 +44,73 @@ pub fn show_settings(s: &mut Cursive) {
         forget_button.select();
     }
 
-    let mut screens = ScreensView::new();
+    let colour = get_subtitle_colour(coin.colour);
+    let mut work_server_form = HideableView::new(
+        LinearLayout::vertical()
+            .child(DummyView)
+            .child(TextView::new(StyledString::styled(
+                "Work Server URL",
+                colour,
+            )))
+            .child(
+                TextArea::new()
+                    .content(work_server_url)
+                    .with_name("workserverurl"),
+            )
+            .child(
+                LinearLayout::horizontal()
+                    .child(Button::new("Change", |s| {
+                        let mut work_server_url = String::from("");
+                        s.call_on_name("workserverurl", |view: &mut TextArea| {
+                            work_server_url = view.get_content().to_string();
+                        })
+                        .unwrap();
+                        set_work_server_url(s, &work_server_url);
+                    }))
+                    .child(DummyView)
+                    .child(Button::new("Paste", |s| {
+                        let mut work_server_input: ViewRef<TextArea> =
+                            s.find_name("workserverurl").unwrap();
+                        work_server_input.set_content(paste_clip(s));
+                    }))
+                    .child(DummyView)
+                    .child(Button::new("Test", move |s| {
+                        let mut work_server_url = String::from("");
+                        s.call_on_name("workserverurl", |view: &mut TextArea| {
+                            work_server_url = view.get_content().to_string();
+                        })
+                        .unwrap();
+                        let test = test_work_server(&work_server_url);
+                        if let Ok(_) = test {
+                            s.add_layer(Dialog::info(StyledString::styled(
+                                "Communicated successfully with work server.",
+                                colour,
+                            )));
+                        } else {
+                            s.add_layer(Dialog::info(StyledString::styled(
+                                format!(
+                                    "Error communicating with work server: {}",
+                                    test.err().unwrap()
+                                ),
+                                RED,
+                            )));
+                        }
+                    })),
+            ),
+    );
 
+    if network.work_type == WorkType::CPU {
+        work_server_form.set_visible(false);
+        cpu_button.select();
+    } else if network.work_type == WorkType::BOOMPOW {
+        work_server_form.set_visible(false);
+        boom_pow_button.select();
+    } else if network.work_type == WorkType::WORK_SERVER {
+        work_server_form.set_visible(true);
+        work_server_button.select();
+    }
+
+    let mut screens = ScreensView::new();
     screens.add_active_screen(
         Dialog::around(
             LinearLayout::vertical()
@@ -100,8 +168,12 @@ pub fn show_settings(s: &mut Cursive) {
                                     .child(boom_pow_button)
                                     .child(DummyView)
                                     .child(DummyView)
-                                    .child(local_work_button),
+                                    .child(cpu_button)
+                                    .child(DummyView)
+                                    .child(DummyView)
+                                    .child(work_server_button),
                             )
+                            .child(work_server_form.with_name("hideable"))
                             .child(DummyView)
                             .child(
                                 LinearLayout::horizontal()

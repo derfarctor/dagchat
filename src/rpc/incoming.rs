@@ -1,7 +1,10 @@
 use super::{blockinfo::get_blocks_info, process::*};
-use crate::app::components::{
-    messages::structs::Message,
-    receive::structs::{Receivable, ReceivableRequest, ReceivableResponse},
+use crate::app::{
+    components::{
+        messages::structs::Message,
+        receive::structs::{Receivable, ReceivableRequest, ReceivableResponse},
+    },
+    constants::REQ_TIMEOUT,
 };
 use crate::crypto::keys::to_public_key;
 use cursive::utils::Counter;
@@ -19,7 +22,7 @@ pub fn find_incoming(
     };
 
     let body = serde_json::to_string(&request).unwrap();
-    let response = post_node(body, node_url)?;
+    let response = post_node(body, node_url, REQ_TIMEOUT)?;
     counter.tick(200);
 
     let receivables: Result<ReceivableResponse, serde_json::error::Error> =

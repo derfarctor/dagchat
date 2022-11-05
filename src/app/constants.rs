@@ -1,8 +1,11 @@
-pub const VERSION: &str = "v1.1.0";
+pub const VERSION: &str = "v1.2.0";
 pub const SHOW_TO_DP: usize = 12;
 pub const AUTHOR: &str = "derfarctor (Author)";
 pub const AUTHOR_ADDR: &str = "_3kpznqbuzs3grswcqkzitd5fwky4s5cmyt76wru7kbenfwza7q9c1f1egzhm";
 pub const EMPTY_MSG: &str = "Nothing to receive...";
+
+// In seconds. Used as default timeout.
+pub const REQ_TIMEOUT: u64 = 10;
 
 pub mod crypto {
     pub const SALT_LENGTH: usize = 16;

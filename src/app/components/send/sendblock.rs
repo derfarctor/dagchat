@@ -46,7 +46,7 @@ pub fn send(
         &block_hash,
         coin,
         &sub,
-    );
+    )?;
     counter.tick(500);
     publish_block(signed_block, sub, &coin.network)
 }

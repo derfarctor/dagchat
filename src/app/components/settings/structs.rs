@@ -17,7 +17,7 @@ impl Network {
         Network {
             node_url: String::from("https://rainstorm.city/api"),
             appditto_node_url: String::from("https://app.natrium.io/api"),
-            work_server_url: String::from("0.0.0.0:7077"),
+            work_server_url: String::from("http://127.0.0.1:7076"),
             default_rep: String::from(
                 "nano_3zx7rus19yr5qi5zmkawnzo5ehxr7i73xqghhondhfrzftgstgk4gxbubwfq",
             ),
@@ -31,13 +31,13 @@ impl Network {
         Network {
             node_url: String::from("https://vault.banano.cc/api/node-api"),
             appditto_node_url: String::from("https://kaliumapi.appditto.com/api"),
-            work_server_url: String::from("0.0.0.0:7077"),
+            work_server_url: String::from("http://127.0.0.1:7076"),
             default_rep: String::from(
                 "ban_3catgir1p6b1edo5trp7fdb8gsxx4y5ffshbphj73zzy5hu678rsry7srh8b",
             ),
             send_thresh: String::from("FFFFFE0000000000"),
             receive_thresh: String::from("FFFFFE0000000000"),
-            work_type: WorkType::LOCAL,
+            work_type: WorkType::CPU,
             save_messages: true,
         }
     }
@@ -46,6 +46,6 @@ impl Network {
 pub struct WorkType;
 impl WorkType {
     pub const BOOMPOW: usize = 0;
-    pub const LOCAL: usize = 1;
-    pub const WORK_SERVER: usize = 1;
+    pub const CPU: usize = 1;
+    pub const WORK_SERVER: usize = 2;
 }

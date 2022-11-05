@@ -50,7 +50,7 @@ pub fn receive_block(
         &block_hash,
         coin,
         &sub,
-    );
+    )?;
     counter.tick(400);
     publish_block(signed_block, sub, &coin.network)
 }

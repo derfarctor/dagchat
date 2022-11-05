@@ -1,3 +1,5 @@
+use crate::app::constants::REQ_TIMEOUT;
+
 use super::process::post_node;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -25,7 +27,7 @@ pub fn get_account_info(address: &str, node_url: &str) -> Result<AccountInfoResp
     });
 
     let body = body_json.to_string();
-    let resp_string = post_node(body, node_url)?;
+    let resp_string = post_node(body, node_url, REQ_TIMEOUT)?;
     let accountinfo = serde_json::from_str(&resp_string);
     match accountinfo {
         Ok(accountinfo) => Ok(accountinfo),
