@@ -15,7 +15,6 @@ struct WorkRequest {
 struct WorkResponse {
     work: String,
     difficulty: String,
-    multiplier: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
