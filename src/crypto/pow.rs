@@ -20,14 +20,14 @@ pub fn generate_work(input_hash: &[u8; 32], threshold: u64) -> String {
     let terminated = Arc::new(AtomicBool::new(false));
     let mut threads = vec![];
 
-    for i in 0..cpus {
+    for _i in 0..cpus {
         let mut input_copy = [0u8; 32];
         input_copy.clone_from_slice(input_hash);
         let threshold_copy = threshold;
         let terminator = terminated.clone();
         let thread_handle = thread::spawn(move || {
             let (success, work) = compute_work(terminator, &input_copy, threshold_copy);
-            //eprintln!("Thread {} success: {}", i.clone(), success);
+            //eprintln!("Thread {} success: {}", _i.clone(), success);
             (success, work)
         });
         threads.push(thread_handle);
