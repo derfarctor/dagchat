@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::app::constants::REQ_TIMEOUT;
-
 use super::process::post_node;
 
 #[derive(Serialize, Deserialize, Debug)]
