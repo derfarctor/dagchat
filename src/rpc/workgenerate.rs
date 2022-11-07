@@ -28,7 +28,7 @@ struct ValidateRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ValidateResponse {
-    valid: String,
+    valid_all: String,
 }
 
 pub fn get_server_work(
@@ -65,7 +65,7 @@ pub fn test_work_server(server_url: &str) -> Result<String, String> {
     let validate_response: Result<ValidateResponse, _> = serde_json::from_str(&response);
     match validate_response {
         Ok(validate_response) => {
-            if validate_response.valid == "1" {
+            if validate_response.valid_all == "1" {
                 Ok(String::from("Success."))
             } else {
                 Err(String::from(
