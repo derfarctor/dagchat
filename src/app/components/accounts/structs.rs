@@ -18,15 +18,29 @@ pub struct Account {
 
 impl Account {
     pub fn with_index(wallet: &Wallet, index: u32, prefix: &str) -> Account {
-        let (private_key, public_key) = Account::get_keypair(&wallet.seed, index);
-        Account {
-            index,
-            private_key,
-            public_key,
-            address: get_address(&public_key, Some(prefix)),
-            balance: 0,
-            receivables: vec![],
-            messages: Ok(vec![]),
+        if wallet.mnemonic.is_empty() {
+            // Generate using seed as private key.
+            let public_key = Wallet::get_public_key(&wallet.seed);
+            Account {
+                index,
+                private_key: wallet.seed,
+                public_key,
+                address: get_address(&public_key, Some(prefix)),
+                balance: 0,
+                receivables: vec![],
+                messages: Ok(vec![]),
+            }
+        } else {
+            let (private_key, public_key) = Account::get_keypair(&wallet.seed, index);
+            Account {
+                index,
+                private_key,
+                public_key,
+                address: get_address(&public_key, Some(prefix)),
+                balance: 0,
+                receivables: vec![],
+                messages: Ok(vec![]),
+            }
         }
     }
 

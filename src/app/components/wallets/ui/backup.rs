@@ -65,7 +65,7 @@ pub fn backup_wallet(s: &mut Cursive) {
             );
         });
     } else {
-        let private_key = hex::encode(wallet.accounts[wallet.acc_idx].private_key);
+        let private_key = hex::encode(wallet.seed);
         content.add_button("Private key", move |s| {
             let private_key = private_key.clone();
             s.add_layer(

@@ -30,11 +30,12 @@ impl Wallet {
         wallet
     }
     pub fn new_key(private_key: [u8; 32], name: String, prefix: &str) -> Wallet {
+        // Use seed field for private key for private key wallets.
         let public_key = Wallet::get_public_key(&private_key);
         let mut wallet = Wallet {
             name,
             mnemonic: String::from(""),
-            seed: [0u8; 32],
+            seed: private_key,
             indexes: vec![0],
             accounts: vec![],
             acc_idx: 0,
@@ -51,7 +52,7 @@ impl Wallet {
         wallet
     }
 
-    fn get_public_key(private_key: &[u8; 32]) -> [u8; 32] {
+    pub fn get_public_key(private_key: &[u8; 32]) -> [u8; 32] {
         let dalek = ed25519_dalek::SecretKey::from_bytes(private_key).unwrap();
         let public_key = ed25519_dalek::PublicKey::from(&dalek);
         public_key.to_bytes()
