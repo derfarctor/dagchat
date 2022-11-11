@@ -128,7 +128,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                 let mut message = String::from("");
                 let mut amount = String::from("");
                 s.call_on_name("address", |view: &mut TextArea| {
-                    address = String::from(view.get_content());
+                    address = String::from(view.get_content().trim());
                 })
                 .unwrap();
                 if with_message {
@@ -156,7 +156,6 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                     s.add_layer(Dialog::info(content));
                     return;
                 }
-                address = address.trim().to_string();
                 if !validate_address(&address) {
                     s.add_layer(Dialog::info("The recipient's address is invalid."));
                     return;
