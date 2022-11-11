@@ -156,6 +156,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                     s.add_layer(Dialog::info(content));
                     return;
                 }
+                address = address.trim().to_string();
                 if !validate_address(&address) {
                     s.add_layer(Dialog::info("The recipient's address is invalid."));
                     return;
