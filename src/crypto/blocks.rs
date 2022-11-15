@@ -77,7 +77,7 @@ pub fn get_signed_block(
                 &coin.network.send_thresh
             };
 
-            get_server_work(previous_hash, &threshold, &coin.network.work_server_url)?
+            get_server_work(previous_hash, threshold, &coin.network.work_server_url)?
         }
     } else if work_type == WorkType::BOOMPOW {
         String::from("")

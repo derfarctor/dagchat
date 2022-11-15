@@ -81,7 +81,7 @@ pub fn show_settings(s: &mut Cursive) {
                         })
                         .unwrap();
                         let test = test_work_server(&work_server_url);
-                        if let Ok(_) = test {
+                        if test.is_ok() {
                             s.add_layer(Dialog::info(StyledString::styled(
                                 "Communicated successfully with work server.",
                                 colour,

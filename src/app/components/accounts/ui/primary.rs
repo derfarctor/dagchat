@@ -18,6 +18,11 @@ pub fn show_accounts(s: &mut Cursive) {
     let prefix = data.coins[data.coin_idx].prefix.clone();
 
     let mut buttons = LinearLayout::horizontal().child(DummyView);
+    buttons.add_child(Button::new("Back", |s| {
+        s.pop_layer();
+        show_wallets(s);
+    }));
+    buttons.add_child(DummyView);
     if !wallet.mnemonic.is_empty() {
         buttons.add_child(Button::new("Show next", move |s| {
             add_account(s, None, &prefix);
@@ -35,12 +40,7 @@ pub fn show_accounts(s: &mut Cursive) {
         buttons.add_child(Button::new("Show index", add_index));
         buttons.add_child(DummyView);
         buttons.add_child(Button::new("Hide", hide_account));
-        buttons.add_child(DummyView);
     }
-    buttons.add_child(Button::new("Back", |s| {
-        s.pop_layer();
-        show_wallets(s);
-    }));
 
     let mut select = SelectView::<String>::new().on_submit(select_account);
 
@@ -97,4 +97,5 @@ pub fn show_accounts(s: &mut Cursive) {
         )
         .title(wallet_name),
     );
+    s.focus_name("accounts").unwrap();
 }

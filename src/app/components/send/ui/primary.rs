@@ -62,7 +62,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
     let mut address_entry = TextArea::new();
     address_entry.set_cursor(address.len());
     let address_entry = address_entry
-        .content(address)
+        .content(&address)
         .with_name("address")
         .max_width(68);
 
@@ -201,6 +201,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
                 }
                 process_send(s, raw, address, message);
             }))
+            .child(DummyView)
             .child(Button::new("Back", show_inbox))
             .child(DummyView)
             .child(DummyView)
@@ -216,4 +217,7 @@ pub fn show_send(s: &mut Cursive, with_message: bool) {
         )
         .with_name("hideable"),
     );
+    if !address.is_empty() && with_message {
+        s.focus_name("message").unwrap();
+    }
 }

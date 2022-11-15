@@ -8,18 +8,30 @@ use crate::app::{
     userdata::UserData,
 };
 use crate::crypto::conversions::display_to_dp;
-use cursive::views::{Dialog, ProgressBar, SelectView, TextView};
+use cursive::views::{Button, Dialog, HideableView, ProgressBar, SelectView, TextView};
 use cursive::{traits::Resizable, utils::markup::StyledString, Cursive};
 use std::time::SystemTime;
 
-pub fn process_receive(s: &mut Cursive, idx: usize) {
+pub fn process_receive(s: &mut Cursive, mut idx: usize, all: bool) {
     let data = &s.user_data::<UserData>().unwrap();
     let wallet = &data.wallets[data.wallet_idx];
     let account = &wallet.accounts[wallet.acc_idx];
     let private_key = account.private_key;
+    if all {
+        let non_msg_idx = account.receivables.iter().position(|r| r.message.is_none());
+        if let Some(non_msg_idx) = non_msg_idx {
+            idx = non_msg_idx;
+        } else {
+            s.set_autorefresh(false);
+            s.call_on_name("receiveall", |view: &mut HideableView<Button>| {
+                view.set_visible(false);
+            })
+            .unwrap();
+            return;
+        }
+    }
     let receivable = &account.receivables[idx];
     let send_block_hash = receivable.hash.clone();
-
     let amount = receivable.amount;
     let address = account.address.clone();
     let coin = data.coins[data.coin_idx].clone();
@@ -101,7 +113,12 @@ pub fn process_receive(s: &mut Cursive, idx: usize) {
                         data.coins[data.coin_idx].colour,
                     ));
                     s.pop_layer();
-                    s.pop_layer();
+                    if all {
+                        return process_receive(s, 0, all);
+                    } else {
+                        s.pop_layer();
+                        s.set_autorefresh(false);
+                    }
                     if save_res.is_err() {
                         s.add_layer(
                             Dialog::info(StyledString::styled(save_res.err().unwrap(), RED))

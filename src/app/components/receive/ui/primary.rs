@@ -1,5 +1,6 @@
 use super::process::process_receive;
 use crate::app::components::messages::readmessage::read_message;
+use crate::app::components::send::ui::primary::show_send;
 use crate::app::constants::colours::RED;
 use crate::app::constants::EMPTY_MSG;
 use crate::app::{
@@ -9,9 +10,9 @@ use crate::app::{
     userdata::UserData,
 };
 use crate::crypto::conversions::display_to_dp;
-use cursive::views::{Dialog, DummyView, LinearLayout, SelectView, TextView};
+use cursive::views::{Dialog, DummyView, LinearLayout, SelectView, TextArea, TextView};
 use cursive::{
-    traits::{Resizable, Scrollable},
+    traits::{Nameable, Resizable, Scrollable},
     utils::markup::StyledString,
     Cursive,
 };
@@ -55,7 +56,8 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
                         plaintext = plaintext_res;
                         message.plaintext = plaintext.clone();
                     } else {
-                       plaintext = format!("Failed to read message. Error: {}", read_res.err().unwrap());  
+                        plaintext =
+                            format!("Failed to read message. Error: {}", read_res.err().unwrap());
                         receivable.message = None;
                     }
                 } else {
@@ -95,6 +97,7 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
             let source_suffix = String::from('_') + source_parts.pop().unwrap();
 
             let sender = receivable.source.clone();
+            let sender2 = receivable.source.clone();
 
             let from = if data.addressbook.contains_key(&source_suffix) {
                 data.addressbook.get(&source_suffix).unwrap()
@@ -103,15 +106,21 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
             };
             content.add_child(TextView::new(StyledString::styled("From", colour)));
             content.add_child(TextView::new(StyledString::styled(from, OFF_WHITE)).fixed_width(65));
-            s.add_layer(
-                Dialog::around(content)
-                    .button(receive_label, move |s| {
-                        process_receive(s, focus);
-                    })
-                    .button("Copy address", move |s| copy_to_clip(s, sender.clone()))
-                    .button("Back", go_back)
-                    .title(title),
-            );
+            let mut main_view = Dialog::around(content).button(receive_label, move |s| {
+                process_receive(s, focus, false);
+            });
+            if receivable.message.is_some() {
+                main_view.add_button("Reply", move |s| {
+                    s.pop_layer();
+                    s.pop_layer();
+                    s.add_layer(TextArea::new().content(&sender2).with_name("address"));
+                    show_send(s, true);
+                });
+            }
+            main_view.add_button("Copy address", move |s| copy_to_clip(s, sender.clone()));
+            main_view.add_button("Back", go_back);
+            main_view.set_title(title);
+            s.add_layer(main_view);
         }
     }
 }
