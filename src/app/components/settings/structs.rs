@@ -29,7 +29,7 @@ impl Network {
     }
     pub fn banano() -> Network {
         Network {
-            node_url: String::from("https://vault.banano.cc/api/node-api"),
+            node_url: String::from("https://kaliumapi.appditto.com/api"),
             appditto_node_url: String::from("https://kaliumapi.appditto.com/api"),
             work_server_url: String::from("http://127.0.0.1:7076"),
             default_rep: String::from(
