@@ -3,6 +3,8 @@ pub const SHOW_TO_DP: usize = 12;
 pub const AUTHOR: &str = "derfarctor (Author)";
 pub const AUTHOR_ADDR: &str = "_3kpznqbuzs3grswcqkzitd5fwky4s5cmyt76wru7kbenfwza7q9c1f1egzhm";
 pub const EMPTY_MSG: &str = "Nothing to receive...";
+pub const BANANO_MESSAGE_PREAMBLE: &[u8; 10] = &[98, 97, 110, 97, 110, 111, 109, 115, 103, 45]; //utf-8 "bananomsg-" to hex
+pub const NANO_MESSAGE_PREAMBLE: &[u8; 8] = &[110, 97, 110, 111, 109, 115, 103, 45]; //utf-8 "nanomsg-" to hex
 
 // In seconds. Used as default timeout.
 pub const REQ_TIMEOUT: u64 = 10;

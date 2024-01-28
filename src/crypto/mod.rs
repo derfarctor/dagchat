@@ -5,4 +5,5 @@ pub mod conversions;
 pub mod keys;
 pub mod mnemonic;
 pub mod pow;
+pub mod signmessage;
 pub mod wordlist;

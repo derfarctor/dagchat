@@ -40,7 +40,7 @@ pub fn show_receivable(s: &mut Cursive, _name: &str) {
             if receivable.message.is_some() {
                 receive_label = String::from(" and mark read");
                 title = String::from("Message");
-                let mut message = receivable.message.as_mut().unwrap();
+                let message = receivable.message.as_mut().unwrap();
                 if message.plaintext.is_empty() {
                     // Potential feature: Confirm option with message length in chars (estimated)
                     // removes ability for attacks such as extremely long messages although probably

@@ -1,4 +1,5 @@
 use super::changerep::show_change_rep;
+use super::signmessage::show_sign_message;
 use crate::app::{
     clipboard::copy_to_clip,
     constants::{SHOW_TO_DP, VERSION},
@@ -100,6 +101,7 @@ pub fn show_inbox(s: &mut Cursive) {
         .child(Button::new("Copy address", move |s| {
             copy_to_clip(s, address.clone())
         }))
+        .child(Button::new("Sign message", show_sign_message))
         .child(Button::new("Change rep", show_change_rep))
         .child(DummyView)
         .child(Button::new("Back", show_accounts));
