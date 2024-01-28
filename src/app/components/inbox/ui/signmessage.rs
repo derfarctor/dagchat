@@ -52,7 +52,8 @@ pub fn show_sign_message(s: &mut Cursive) {
                 .child(Button::new("Sign", move |s| {
                     let mut message = String::from("");
                     s.call_on_name("message", |view: &mut TextArea| {
-                        message = String::from(view.get_content());
+                        //remove carriage returns
+                        message = String::from(view.get_content()).replace("\r\n", "\n");
                     });
                     if message.is_empty() {
                         s.add_layer(Dialog::info(
