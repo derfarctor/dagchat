@@ -10,14 +10,14 @@ use crate::app::{
 use super::primary::show_inbox;
 use cursive::Cursive;
 use cursive::views::{
-  HideableView,
-  Button,
-  Dialog,
-  LinearLayout,
-  DummyView,
-  TextView,
-  TextArea,
-  ViewRef,
+    HideableView,
+    Button,
+    Dialog,
+    LinearLayout,
+    DummyView,
+    TextView,
+    TextArea,
+    ViewRef,
 };
 use cursive::traits::Nameable;
 use cursive::utils::markup::StyledString;
@@ -31,8 +31,8 @@ pub fn show_sign_message(s: &mut Cursive) {
     let coin = data.coins[data.coin_idx].clone();
     let sub_title_colour = get_subtitle_colour(coin.colour);
     s.add_layer(
-      HideableView::new(
-      Dialog::around(
+        HideableView::new(
+        Dialog::around(
             LinearLayout::vertical()
             .child(DummyView)
                 .child(TextView::new(StyledString::styled(
@@ -47,7 +47,6 @@ pub fn show_sign_message(s: &mut Cursive) {
                             message.set_content(paste_clip(s));
                         }))
                 )
-                //
                 .child(DummyView)
                 .child(LinearLayout::horizontal()
                 .child(Button::new("Sign", move |s| {

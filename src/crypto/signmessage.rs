@@ -1,6 +1,6 @@
 use super::blocks::{get_block_hash, get_signed_block};
 use crate::app::coin::Coin;
-use crate::app::constants::{ BANANO_MESSAGE_PREAMBLE, NANO_MESSAGE_PREAMBLE };
+use crate::app::constants::{BANANO_MESSAGE_PREAMBLE, NANO_MESSAGE_PREAMBLE};
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 
